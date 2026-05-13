@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Strateg2 — RTS</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game">
+    <canvas id="canvas" width="960" height="640"></canvas>
+    <div id="hud">
+      <div id="resources">
+        <span>Gold: <b id="gold">0</b></span>
+        <span>Wood: <b id="wood">0</b></span>
+        <span id="pop-info">Units: <b id="pop">0</b></span>
+      </div>
+      <div id="build-menu">
+        <button data-build="barracks">Barracks (200g 100w)</button>
+        <button data-build="archeryRange">Archery Range (200g 100w)</button>
+        <button data-build="arrowBuilding">Arrow Building (100g 150w)</button>
+        <button data-build="cancel">Cancel</button>
+      </div>
+      <div id="train-menu" style="display:none">
+        <span id="train-title">Train:</span>
+        <button data-train="peasant">Peasant (50g)</button>
+        <button data-train="swordsman">Swordsman (80g)</button>
+        <button data-train="archer">Archer (70g)</button>
+      </div>
+      <div id="selection-info"></div>
+      <div id="hint">Left-click: select / drag-box. Right-click: move / gather / attack / haul. Click a Town Hall to train peasants, Barracks for swordsmen, Archery Range for archers.</div>
+    </div>
+    <div id="game-over" style="display:none">
+      <div id="game-over-text"></div>
+      <button id="restart">Restart</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/pathfinding.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/units.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
