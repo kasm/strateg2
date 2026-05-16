@@ -5,7 +5,8 @@
       "Read(//d/docker/**)",
       "Bash(findstr /v \"^total\")",
       "Bash(npx vitest *)",
-      "Bash(node --input-type=module -e \"import\\('./src/core/world.js'\\).then\\(m => { const w = m.createWorld\\(\\(await import\\('./src/core/config.js'\\)\\).CONFIG\\); console.log\\('world keys:', Object.keys\\(w\\).join\\(', '\\)\\); }\\).catch\\(e => { console.error\\('IMPORT FAILED:', e.message\\); process.exit\\(1\\); }\\)\")"
+      "Bash(node --input-type=module -e \"import\\('./src/core/world.js'\\).then\\(m => { const w = m.createWorld\\(\\(await import\\('./src/core/config.js'\\)\\).CONFIG\\); console.log\\('world keys:', Object.keys\\(w\\).join\\(', '\\)\\); }\\).catch\\(e => { console.error\\('IMPORT FAILED:', e.message\\); process.exit\\(1\\); }\\)\")",
+      "Bash(dir d:\\\\docker\\\\strateg2)"
     ]
   }
 }

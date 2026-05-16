@@ -63,9 +63,11 @@ function gatherGold(u, dt, deps) {
     u.jobTarget = mine;
   }
   if (!mine) { u.job = null; return; }
-  const adj = Math.abs(u.tileX - (mine.tileX + 1)) <= 1 && Math.abs(u.tileY - (mine.tileY + 1)) <= 1;
   const insideX = u.tileX >= mine.tileX && u.tileX < mine.tileX + mine.w;
   const insideY = u.tileY >= mine.tileY && u.tileY < mine.tileY + mine.h;
+  // Adjacent = within one tile of any side of the building footprint (works for w/h > 1).
+  const adj = u.tileX >= mine.tileX - 1 && u.tileX <= mine.tileX + mine.w &&
+              u.tileY >= mine.tileY - 1 && u.tileY <= mine.tileY + mine.h;
   if (adj && !(insideX && insideY)) {
     u.gatherTimer += dt;
     if (u.gatherTimer >= config.resources.gatherTime) {
