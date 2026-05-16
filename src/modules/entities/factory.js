@@ -19,7 +19,7 @@ export function makeUnitRecord(id, kind, owner, tileX, tileY, def, tileSize) {
     jobTarget: null,
     carrying: null,
     cooldown: 0,
-    arrows: 0,
+    arrows: kind === 'archer' ? Math.floor(def.quiverMax / 2) : 0,
     gatherTimer: 0,
     insideBuilding: null,
   };
@@ -49,6 +49,8 @@ export function makeBuildingRecord(id, kind, owner, tileX, tileY, def, config) {
   }
   if (kind === 'tower') {
     b.garrison = [];
+    b.arrows = 0;
+    b.distributeTimer = 0;
   }
   return b;
 }

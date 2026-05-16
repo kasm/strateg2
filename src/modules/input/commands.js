@@ -39,6 +39,13 @@ export function issueOrder(u, tgt, tile, deps) {
     if (tgt.type === 'building' && tgt.kind === 'arrowBuilding' && tgt.owner === u.owner) {
       u.job = 'haulWood'; u.jobTarget = tgt; return;
     }
+    if (tgt.type === 'building' && tgt.kind === 'tower' && tgt.owner === u.owner && u.kind === 'peasant') {
+      const ab = entities.nearestOf(
+        e => e.type === 'building' && e.kind === 'arrowBuilding' && e.owner === u.owner,
+        u.x, u.y,
+      );
+      if (ab) { u.job = 'haulArrows'; u.jobTarget = tgt; u.target = ab; return; }
+    }
     if (tgt.type === 'unit' && tgt.kind === 'archer' && tgt.owner === u.owner && u.kind === 'peasant') {
       const ab = entities.nearestOf(
         e => e.type === 'building' && e.kind === 'arrowBuilding' && e.owner === u.owner,

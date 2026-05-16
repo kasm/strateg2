@@ -12,6 +12,7 @@
       <div id="resources">
         <span>Gold: <b id="gold">0</b></span>
         <span>Wood: <b id="wood">0</b></span>
+        <span>Arrows: <b id="arrows-total">0</b></span>
         <span id="pop-info">Units: <b id="pop">0</b></span>
       </div>
       <div id="build-menu">
@@ -35,6 +36,13 @@
             <option value="spread">Spread (slight shift)</option>
             <option value="badge">Badge (count + total HP)</option>
             <option value="overlap">Overlap (no separation)</option>
+          </select>
+        </label>
+        <label>Supply:
+          <select id="supply-priority">
+            <option value="auto">Auto</option>
+            <option value="wood">Wood first</option>
+            <option value="arrows">Arrows first</option>
           </select>
         </label>
       </div>

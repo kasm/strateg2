@@ -20,6 +20,19 @@ export function stepBuildings(dt, { state, config, entities, pathfinding }) {
       }
     }
 
+    if (b.kind === 'tower' && b.arrows > 0 && b.garrison.length > 0) {
+      const towerDef = config.building.tower;
+      const qMax = config.unit.archer.quiverMax;
+      b.distributeTimer += dt;
+      if (b.distributeTimer >= towerDef.distributeTime) {
+        b.distributeTimer = 0;
+        for (const a of b.garrison) {
+          if (b.arrows <= 0) break;
+          if (a.arrows < qMax) { a.arrows += 1; b.arrows -= 1; }
+        }
+      }
+    }
+
     if (b.trainQueue.length > 0) {
       const kind = b.trainQueue[0];
       const def = config.unit[kind];

@@ -108,6 +108,12 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
       stackModeEl.addEventListener('change', () => { state.stackMode = stackModeEl.value; });
     }
 
+    const supplyEl = document.getElementById('supply-priority');
+    if (supplyEl) {
+      supplyEl.value = state.supplyPriority;
+      supplyEl.addEventListener('change', () => { state.supplyPriority = supplyEl.value; });
+    }
+
     if (onRestart) {
       document.getElementById('restart').addEventListener('click', onRestart);
     }

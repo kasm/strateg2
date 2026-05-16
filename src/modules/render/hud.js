@@ -5,6 +5,8 @@ export function updateHUD(state, config, entities) {
   document.getElementById('gold').textContent = Math.floor(me.gold);
   document.getElementById('wood').textContent = Math.floor(me.wood);
   document.getElementById('pop').textContent  = entities.unitsOf('red').length;
+  const arrowsTotal = document.getElementById('arrows-total');
+  if (arrowsTotal) arrowsTotal.textContent = totalRedArrows(state);
 
   const info = document.getElementById('selection-info');
   if (state.selected.length === 0) {
@@ -17,6 +19,16 @@ export function updateHUD(state, config, entities) {
 }
 
 const MAX_LINES = 12;
+
+function totalRedArrows(state) {
+  let n = 0;
+  for (const e of state.entities) {
+    if (e.hp <= 0 || e.owner !== 'red') continue;
+    if (e.type === 'unit' && e.kind === 'archer') n += e.arrows;
+    else if (e.type === 'building' && (e.kind === 'arrowBuilding' || e.kind === 'tower')) n += e.arrows;
+  }
+  return n;
+}
 
 function describeSelection(selected) {
   const rows = selected.slice().sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
@@ -50,6 +62,7 @@ function describeEntity(e, config) {
   if (e.kind === 'tower') {
     const max = config.building.tower.garrisonMax;
     s += `\nGarrison: ${e.garrison.length}/${max}`;
+    s += `\nArrows: ${e.arrows}/${config.building.tower.arrowCap}`;
     for (const a of e.garrison) s += `\n  archer ${Math.ceil(a.hp)}/${a.maxHp} (${a.arrows}a)`;
   }
   if (e.kind === 'goldMine')          s += `\nGold left: ${e.gold}`;

@@ -10,19 +10,47 @@ export function tryAutoLogistics(u, { state, config, entities }) {
     u.x, u.y,
   );
   if (!ab) return;
-  const def = config.building.arrowBuilding;
-  const woodDeficit = def.woodCap - ab.wood;
-  const archer = entities.nearestOf(
-    e => e.type === 'unit' && e.kind === 'archer' && e.owner === u.owner && e.arrows < config.unit.archer.quiverMax,
+  const abDef = config.building.arrowBuilding;
+  const woodDeficit = abDef.woodCap - ab.wood;
+  const haveWood = state.players[u.owner].wood > 0;
+  const consumer = findArrowConsumer(u, config, entities);
+  const hasArrowJob = ab.arrows > 0 && consumer != null;
+  const hasWoodJob  = woodDeficit > 0 && haveWood;
+
+  const assignArrows = () => { u.job = 'haulArrows'; u.jobTarget = consumer; u.target = ab; };
+  const assignWood   = () => { u.job = 'haulWood';   u.jobTarget = ab; };
+
+  const pri = state.supplyPriority || 'auto';
+  if (pri === 'wood') {
+    if (hasWoodJob) return assignWood();
+    if (hasArrowJob) return assignArrows();
+    return;
+  }
+  if (pri === 'arrows') {
+    if (hasArrowJob) return assignArrows();
+    if (hasWoodJob) return assignWood();
+    return;
+  }
+  // 'auto' — arrows beat wood when both available (original behavior).
+  if (hasArrowJob) return assignArrows();
+  if (hasWoodJob) return assignWood();
+}
+
+function findArrowConsumer(u, config, entities) {
+  // Closest of: non-garrisoned archer below quiverMax, OR garrisoned tower below arrowCap.
+  return entities.nearestOf(
+    e => {
+      if (e.owner !== u.owner) return false;
+      if (e.type === 'unit') {
+        return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
+      }
+      if (e.type === 'building' && e.kind === 'tower') {
+        return e.garrison.length > 0 && e.arrows < config.building.tower.arrowCap;
+      }
+      return false;
+    },
     u.x, u.y,
   );
-  const arrowDeficit = archer ? (config.unit.archer.quiverMax - archer.arrows) : 0;
-  if (ab.arrows > 0 && arrowDeficit > 0) {
-    u.job = 'haulArrows'; u.jobTarget = archer; u.target = ab; return;
-  }
-  if (woodDeficit > 0 && state.players[u.owner].wood > 0) {
-    u.job = 'haulWood'; u.jobTarget = ab;
-  }
 }
 
 export function doGather(u, dt, resource, deps) {
@@ -175,28 +203,29 @@ export function doHaulWood(u, dt, deps) {
 export function doHaulArrows(u, dt, deps) {
   const { config, entities } = deps;
   const ab = u.target;
-  let archer = u.jobTarget;
+  let consumer = u.jobTarget;
   if (!ab || ab.hp <= 0) { u.job = null; return; }
-  if (!archer || archer.hp <= 0 || archer.arrows >= config.unit.archer.quiverMax) {
-    archer = entities.nearestOf(
-      e => e.type === 'unit' && e.kind === 'archer' && e.owner === u.owner && e.arrows < config.unit.archer.quiverMax,
+  if (!consumerStillValid(consumer, u.owner, config)) {
+    consumer = entities.nearestOf(
+      e => isArrowConsumer(e, u.owner, config),
       u.x, u.y,
     );
-    u.jobTarget = archer;
-    if (!archer) { u.job = null; return; }
+    u.jobTarget = consumer;
+    if (!consumer) { u.job = null; return; }
   }
 
+  const cMax = consumerCap(consumer, config);
+
   if (u.carrying && u.carrying.kind === 'arrows') {
-    const dist = Math.hypot(u.x - archer.x, u.y - archer.y);
-    if (dist <= config.tile * 1.5) {
-      const space = config.unit.archer.quiverMax - archer.arrows;
+    if (consumerDepositAdjacent(u, consumer, config)) {
+      const space = cMax - consumer.arrows;
       const give = Math.min(space, u.carrying.amount);
-      archer.arrows += give;
+      consumer.arrows += give;
       u.carrying.amount -= give;
       if (u.carrying.amount <= 0) u.carrying = null;
       return;
     }
-    if (!u.path || u.path.length === 0) moveAdjacentTo(u, archer, deps);
+    if (!u.path || u.path.length === 0) moveAdjacentTo(u, consumer, deps);
     moveAlongPath(u, dt, deps);
     return;
   }
@@ -205,13 +234,48 @@ export function doHaulArrows(u, dt, deps) {
   const adj = Math.abs(u.tileX - (ab.tileX + 0.5)) <= 1.5 &&
               Math.abs(u.tileY - (ab.tileY + 0.5)) <= 1.5;
   if (adj) {
-    const take = Math.min(config.unit.peasant.carry, ab.arrows, config.unit.archer.quiverMax - archer.arrows);
+    const take = Math.min(config.unit.peasant.carry, ab.arrows, cMax - consumer.arrows);
     ab.arrows -= take;
     u.carrying = { kind: 'arrows', amount: take };
     return;
   }
   if (!u.path || u.path.length === 0) moveAdjacentTo(u, ab, deps);
   moveAlongPath(u, dt, deps);
+}
+
+function isArrowConsumer(e, owner, config) {
+  if (e.owner !== owner) return false;
+  if (e.type === 'unit') {
+    return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
+  }
+  if (e.type === 'building' && e.kind === 'tower') {
+    return e.garrison.length > 0 && e.arrows < config.building.tower.arrowCap;
+  }
+  return false;
+}
+
+function consumerStillValid(c, owner, config) {
+  if (!c || c.hp <= 0 || c.owner !== owner) return false;
+  if (c.type === 'unit') {
+    return !c.insideBuilding && c.arrows < config.unit.archer.quiverMax;
+  }
+  if (c.type === 'building' && c.kind === 'tower') {
+    return c.garrison.length > 0 && c.arrows < config.building.tower.arrowCap;
+  }
+  return false;
+}
+
+function consumerCap(c, config) {
+  return c.type === 'unit' ? config.unit.archer.quiverMax : config.building.tower.arrowCap;
+}
+
+function consumerDepositAdjacent(u, c, config) {
+  if (c.type === 'unit') {
+    const dist = Math.hypot(u.x - c.x, u.y - c.y);
+    return dist <= config.tile * 1.5;
+  }
+  return Math.abs(u.tileX - (c.tileX + 0.5)) <= 1.5 &&
+         Math.abs(u.tileY - (c.tileY + 0.5)) <= 1.5;
 }
 
 export function doAttack(u, dt, deps) {
