@@ -12,10 +12,26 @@ export function updateHUD(state, config, entities) {
   } else if (state.selected.length === 1) {
     info.textContent = describeEntity(state.selected[0], config);
   } else {
-    const counts = {};
-    for (const s of state.selected) counts[s.kind] = (counts[s.kind] || 0) + 1;
-    info.textContent = 'Selected: ' + Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(', ');
+    info.textContent = describeSelection(state.selected);
   }
+}
+
+const MAX_LINES = 12;
+
+function describeSelection(selected) {
+  const rows = selected.slice().sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+  const counts = {};
+  for (const s of selected) counts[s.kind] = (counts[s.kind] || 0) + 1;
+  const header = 'Selected: ' + Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(', ');
+  const shown = rows.slice(0, MAX_LINES).map(unitLine);
+  if (rows.length > MAX_LINES) shown.push(`…and ${rows.length - MAX_LINES} more`);
+  return header + '\n' + shown.join('\n');
+}
+
+function unitLine(u) {
+  const hp = `${Math.ceil(u.hp)}/${u.maxHp}`;
+  if (u.kind === 'archer') return `${u.kind} ${hp} (${u.arrows}a)`;
+  return `${u.kind} ${hp}`;
 }
 
 function describeEntity(e, config) {

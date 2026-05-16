@@ -1,6 +1,6 @@
 // Internal: per-frame scene composition (tiles, buildings, units, projectiles, overlays).
 
-import { drawBuilding, drawUnit } from './sprites.js';
+import { drawBuilding, drawUnit, drawUnitStack, drawUnitSpread } from './sprites.js';
 
 export function drawScene(ctx, { state, config, map, getDragRect }) {
   const tile = config.tile;
@@ -34,9 +34,23 @@ export function drawScene(ctx, { state, config, map, getDragRect }) {
   for (const e of state.entities) {
     if (e.type === 'building' && e.hp > 0) drawBuilding(ctx, e, config, state);
   }
-  // Units
-  for (const e of state.entities) {
-    if (e.type === 'unit' && e.hp > 0) drawUnit(ctx, e, config, state);
+  // Units — render mode selects how stacks (same owner/kind on same tile) are displayed.
+  const mode = state.stackMode || 'spread';
+  if (mode === 'overlap') {
+    for (const e of state.entities) {
+      if (e.type === 'unit' && e.hp > 0) drawUnit(ctx, e, config, state);
+    }
+  } else {
+    const groups = new Map();
+    for (const e of state.entities) {
+      if (e.type !== 'unit' || e.hp <= 0) continue;
+      const key = `${e.owner}|${e.kind}|${e.tileX},${e.tileY}`;
+      let g = groups.get(key);
+      if (!g) { g = []; groups.set(key, g); }
+      g.push(e);
+    }
+    const draw = mode === 'badge' ? drawUnitStack : drawUnitSpread;
+    for (const g of groups.values()) draw(ctx, g, config, state);
   }
   // Projectiles
   ctx.fillStyle = config.colors.arrow;

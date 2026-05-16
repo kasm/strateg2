@@ -85,6 +85,12 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
       alwaysHitEl.addEventListener('change', () => { state.alwaysHit = alwaysHitEl.checked; });
     }
 
+    const stackModeEl = document.getElementById('stack-mode');
+    if (stackModeEl) {
+      stackModeEl.value = state.stackMode;
+      stackModeEl.addEventListener('change', () => { state.stackMode = stackModeEl.value; });
+    }
+
     if (onRestart) {
       document.getElementById('restart').addEventListener('click', onRestart);
     }

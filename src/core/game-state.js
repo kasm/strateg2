@@ -37,6 +37,7 @@ export function createGameState(config) {
     gameOver: null,
     hoverTile: null,
     alwaysHit: true,
+    stackMode: 'spread',
     _nextId: 1,
   };
 }
