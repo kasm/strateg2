@@ -1,10 +1,12 @@
 // Internal: archer attack + arrow projectile spawn.
 
+import { distanceToTarget } from './geometry.js';
+
 export function archerStep(u, tgt, dt, { state, config, map, units }) {
   const def = config.unit.archer;
   const tx = tgt.type === 'building' ? (tgt.tileX + tgt.w / 2) * config.tile : tgt.x;
   const ty = tgt.type === 'building' ? (tgt.tileY + tgt.h / 2) * config.tile : tgt.y;
-  const d = Math.hypot(u.x - tx, u.y - ty);
+  const d = distanceToTarget(u, tgt, config.tile);
 
   if (u.arrows <= 0) {
     u.job = null; u.jobTarget = null; u.state = 'idle';

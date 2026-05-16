@@ -1,12 +1,11 @@
 // Internal: melee swing logic. The unit closes to reach distance, then trades cooldown for damage.
 
+import { distanceToTarget } from './geometry.js';
+
 export function meleeStep(u, tgt, dt, { config, entities, units }) {
   const def = config.unit[u.kind];
-  const tx = tgt.type === 'building' ? (tgt.tileX + tgt.w / 2) * config.tile : tgt.x;
-  const ty = tgt.type === 'building' ? (tgt.tileY + tgt.h / 2) * config.tile : tgt.y;
-  const d = Math.hypot(u.x - tx, u.y - ty);
-  const reach = def.range * config.tile +
-                (tgt.type === 'building' ? Math.max(tgt.w, tgt.h) * config.tile / 2 : config.tile * 0.5);
+  const d = distanceToTarget(u, tgt, config.tile);
+  const reach = def.range * config.tile + (tgt.type === 'building' ? 0 : config.tile * 0.5);
   if (d > reach) {
     if (!u.path || u.path.length === 0) {
       if (!units.moveAdjacentTo(u, tgt)) { u.job = null; return; }
