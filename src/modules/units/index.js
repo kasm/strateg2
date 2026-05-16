@@ -41,6 +41,14 @@ export function createUnits({ state, config, map, pathfinding, entities, combat 
     for (const u of state.entities) {
       if (u.type !== 'unit' || u.hp <= 0) continue;
       if (u.cooldown > 0) u.cooldown -= dt;
+      if (u.insideBuilding) {
+        const b = u.insideBuilding;
+        u.x = (b.tileX + b.w / 2) * config.tile;
+        u.y = (b.tileY + b.h / 2) * config.tile;
+        u.tileX = b.tileX + Math.floor(b.w / 2);
+        u.tileY = b.tileY + Math.floor(b.h / 2);
+        u.path = null;
+      }
       switch (u.kind) {
         case 'peasant':   updatePeasant(u, dt, deps);    break;
         case 'swordsman': updateMeleeUnit(u, dt, deps);  break;

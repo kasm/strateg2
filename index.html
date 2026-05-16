@@ -7,7 +7,7 @@
 </head>
 <body>
   <div id="game">
-    <canvas id="canvas" width="960" height="640"></canvas>
+    <canvas id="canvas" width="1920" height="640"></canvas>
     <div id="hud">
       <div id="resources">
         <span>Gold: <b id="gold">0</b></span>
@@ -18,6 +18,7 @@
         <button data-build="barracks">Barracks (200g 100w)</button>
         <button data-build="archeryRange">Archery Range (200g 100w)</button>
         <button data-build="arrowBuilding">Arrow Building (100g 150w)</button>
+        <button data-build="tower">Tower (150g 100w)</button>
         <button data-build="cancel">Cancel</button>
       </div>
       <div id="train-menu" style="display:none">
@@ -38,6 +39,7 @@
         </label>
       </div>
       <div id="selection-info"></div>
+      <button id="eject-button" style="display:none">Eject all</button>
       <div id="hint">Left-click: select / drag-box. Right-click: move / gather / attack / haul. Click a Town Hall to train peasants, Barracks for swordsmen, Archery Range for archers.</div>
     </div>
     <div id="game-over" style="display:none">

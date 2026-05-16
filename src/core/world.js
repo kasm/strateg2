@@ -36,7 +36,7 @@ export function createWorld(config, hooks = {}) {
   const state       = createGameState(config);
   const map         = createMap({ config });
   const pathfinding = createPathfinding({ map });
-  const entities    = createEntities({ state, config, map });
+  const entities    = createEntities({ state, config, map, pathfinding });
   const combat      = createCombat({ state, config, map, entities, pathfinding });
   const units       = createUnits({ state, config, map, pathfinding, entities, combat });
   // Resolve the units <-> combat cycle: combat's melee/archer steps need movement helpers.

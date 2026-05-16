@@ -45,11 +45,12 @@ export function stepProjectiles(dt, { state, config, entities }) {
 function findHit(x0, y0, x1, y1, p, entities, tile) {
   for (const e of entities) {
     if (e.type !== 'unit' || e.hp <= 0) continue;
+    if (e.insideBuilding) continue;
     if (!e.owner || e.owner === p.owner || e.owner === 'neutral') continue;
     if (segmentCircle(x0, y0, x1, y1, e.x, e.y, tile * 0.5)) return e;
   }
   const t = p.target;
-  if (t && t.hp > 0 && segmentHitsTarget(x0, y0, x1, y1, t, tile)) return t;
+  if (t && t.hp > 0 && !t.insideBuilding && segmentHitsTarget(x0, y0, x1, y1, t, tile)) return t;
   return null;
 }
 

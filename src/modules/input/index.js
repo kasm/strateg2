@@ -2,6 +2,7 @@
 // Owns the canvas listeners and HUD button bindings, exposes the drag-rect for render to draw.
 
 import { bindMouse } from './mouse.js';
+import { ejectAllFromTower } from '../units/archer.js';
 
 /**
  * @typedef {Object} InputModule
@@ -47,10 +48,20 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
         });
         document.getElementById('train-title').textContent = 'Train from ' + s.kind + ':';
         menu.style.display = '';
+        refreshEjectButton();
         return;
       }
     }
     menu.style.display = 'none';
+    refreshEjectButton();
+  }
+
+  function refreshEjectButton() {
+    const btn = document.getElementById('eject-button');
+    if (!btn) return;
+    const s = state.selected.length === 1 ? state.selected[0] : null;
+    const show = s && s.type === 'building' && s.kind === 'tower' && s.owner === 'red' && s.garrison && s.garrison.length > 0;
+    btn.style.display = show ? '' : 'none';
   }
 
   function initInput() {
@@ -99,6 +110,16 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
 
     if (onRestart) {
       document.getElementById('restart').addEventListener('click', onRestart);
+    }
+
+    const ejectBtn = document.getElementById('eject-button');
+    if (ejectBtn) {
+      ejectBtn.addEventListener('click', () => {
+        const s = state.selected[0];
+        if (!s || s.type !== 'building' || s.kind !== 'tower' || s.owner !== 'red') return;
+        ejectAllFromTower(s, { config, map, pathfinding });
+        refreshEjectButton();
+      });
     }
   }
 

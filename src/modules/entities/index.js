@@ -3,6 +3,7 @@
 
 import { makeUnitRecord, makeBuildingRecord } from './factory.js';
 import { findEntityAtPx, nearestEntity, entitiesOfKindOwner } from './queries.js';
+import { ejectAllFromTower } from '../units/archer.js';
 
 /**
  * @typedef {Object} EntitiesModule
@@ -29,7 +30,7 @@ import { findEntityAtPx, nearestEntity, entitiesOfKindOwner } from './queries.js
  * }} deps
  * @returns {EntitiesModule}
  */
-export function createEntities({ state, config, map }) {
+export function createEntities({ state, config, map, pathfinding }) {
   function makeUnit(kind, owner, tileX, tileY) {
     const def = config.unit[kind];
     const u = makeUnitRecord(state._nextId++, kind, owner, tileX, tileY, def, config.tile);
@@ -57,17 +58,24 @@ export function createEntities({ state, config, map }) {
     state.players.blue.wood = config.startResources.wood;
 
     makeBuilding('goldMine', 'neutral', 4, 9);
-    makeBuilding('goldMine', 'neutral', 24, 9);
+    makeBuilding('goldMine', 'neutral', 54, 9);
     makeBuilding('townHall', 'red', 1, 8);
-    makeBuilding('townHall', 'blue', 26, 8);
+    makeBuilding('townHall', 'blue', 56, 8);
     for (let i = 0; i < 3; i++) {
       makeUnit('peasant', 'red', 5 + i, 11);
-      makeUnit('peasant', 'blue', 22 - i, 11);
+      makeUnit('peasant', 'blue', 54 - i, 11);
     }
   }
 
   function killEntity(e) {
-    if (e.type === 'building') map.setBuildingTiles(e, false);
+    if (e.type === 'building') {
+      if (e.kind === 'tower' && e.garrison && e.garrison.length > 0) {
+        map.setBuildingTiles(e, false);
+        ejectAllFromTower(e, { config, map, pathfinding });
+      } else {
+        map.setBuildingTiles(e, false);
+      }
+    }
     e.hp = 0;
     e.state = 'dead';
     const i = state.selected.indexOf(e);

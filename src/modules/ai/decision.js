@@ -10,7 +10,7 @@
 
 import { tryAIBuild } from './build-order.js';
 
-const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange'];
+const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange', 'tower'];
 
 export function aiDecide(state, config, entities, map, ai, owner) {
   const enemy = owner === 'red' ? 'blue' : 'red';
@@ -67,6 +67,26 @@ export function aiDecide(state, config, entities, map, ai, owner) {
     range.trainQueue.push('archer');
   }
 
+  // 4b. Auto-garrison idle archers into nearest tower with room.
+  const towers = myBuildings.filter(b => b.kind === 'tower');
+  if (towers.length > 0) {
+    const gMax = config.building.tower.garrisonMax;
+    const idleArchers = myUnits.filter(u =>
+      u.kind === 'archer' && !u.insideBuilding && (u.job == null || u.job === 'attack')
+    );
+    for (const a of idleArchers) {
+      let best = null, bd = Infinity;
+      for (const t of towers) {
+        if (t.garrison.length >= gMax) continue;
+        const cx = (t.tileX + t.w / 2) * config.tile;
+        const cy = (t.tileY + t.h / 2) * config.tile;
+        const d = (cx - a.x) ** 2 + (cy - a.y) ** 2;
+        if (d < bd) { bd = d; best = t; }
+      }
+      if (best) { a.job = 'enterTower'; a.jobTarget = best; }
+    }
+  }
+
   // 5. Wave attack.
   if (ai.waveTimer <= 0 && army.length >= config.ai.armyThreshold) {
     const myTH = myBuildings.find(b => b.kind === 'townHall');
@@ -93,13 +113,15 @@ function hintFor(kind, owner) {
       case 'arrowBuilding': return [5, 11];
       case 'barracks':      return [6, 7];
       case 'archeryRange':  return [3, 12];
+      case 'tower':         return [10, 9];
       default:              return [6, 7];
     }
   }
   switch (kind) {
-    case 'arrowBuilding': return [22, 11];
-    case 'barracks':      return [22, 8];
-    case 'archeryRange':  return [24, 12];
-    default:              return [22, 8];
+    case 'arrowBuilding': return [52, 11];
+    case 'barracks':      return [52, 8];
+    case 'archeryRange':  return [54, 12];
+    case 'tower':         return [48, 9];
+    default:              return [52, 8];
   }
 }

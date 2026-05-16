@@ -4,6 +4,7 @@ export function selectInRect(rect, shift, { state, config }) {
   if (!shift) state.selected.length = 0;
   for (const e of state.entities) {
     if (e.type !== 'unit' || e.owner !== 'red' || e.hp <= 0) continue;
+    if (e.insideBuilding) continue;
     if (e.x >= rect.x && e.x <= rect.x + rect.w && e.y >= rect.y && e.y <= rect.y + rect.h) {
       if (!state.selected.includes(e)) state.selected.push(e);
     }
@@ -31,6 +32,9 @@ export function issueOrder(u, tgt, tile, deps) {
     }
     if (tgt.kind === 'goldMine') {
       u.job = 'gatherGold'; u.jobTarget = tgt; return;
+    }
+    if (tgt.type === 'building' && tgt.kind === 'tower' && tgt.owner === u.owner && u.kind === 'archer') {
+      u.job = 'enterTower'; u.jobTarget = tgt; return;
     }
     if (tgt.type === 'building' && tgt.kind === 'arrowBuilding' && tgt.owner === u.owner) {
       u.job = 'haulWood'; u.jobTarget = tgt; return;

@@ -47,6 +47,11 @@ function describeEntity(e, config) {
     s += `\nWood: ${e.wood}/${config.building.arrowBuilding.woodCap}` +
          `\nArrows: ${e.arrows}/${config.building.arrowBuilding.arrowCap}`;
   }
+  if (e.kind === 'tower') {
+    const max = config.building.tower.garrisonMax;
+    s += `\nGarrison: ${e.garrison.length}/${max}`;
+    for (const a of e.garrison) s += `\n  archer ${Math.ceil(a.hp)}/${a.maxHp} (${a.arrows}a)`;
+  }
   if (e.kind === 'goldMine')          s += `\nGold left: ${e.gold}`;
   if (e.trainQueue && e.trainQueue.length) {
     s += `\nQueue: ${e.trainQueue.join(', ')}`;

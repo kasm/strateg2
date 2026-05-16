@@ -21,6 +21,7 @@ export function makeUnitRecord(id, kind, owner, tileX, tileY, def, tileSize) {
     cooldown: 0,
     arrows: 0,
     gatherTimer: 0,
+    insideBuilding: null,
   };
 }
 
@@ -45,6 +46,9 @@ export function makeBuildingRecord(id, kind, owner, tileX, tileY, def, config) {
   }
   if (kind === 'goldMine') {
     b.gold = config.resources.goldPerMine;
+  }
+  if (kind === 'tower') {
+    b.garrison = [];
   }
   return b;
 }

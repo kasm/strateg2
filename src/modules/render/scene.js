@@ -38,12 +38,13 @@ export function drawScene(ctx, { state, config, map, getDragRect }) {
   const mode = state.stackMode || 'spread';
   if (mode === 'overlap') {
     for (const e of state.entities) {
-      if (e.type === 'unit' && e.hp > 0) drawUnit(ctx, e, config, state);
+      if (e.type === 'unit' && e.hp > 0 && !e.insideBuilding) drawUnit(ctx, e, config, state);
     }
   } else {
     const groups = new Map();
     for (const e of state.entities) {
       if (e.type !== 'unit' || e.hp <= 0) continue;
+      if (e.insideBuilding) continue;
       const key = `${e.owner}|${e.kind}|${e.tileX},${e.tileY}`;
       let g = groups.get(key);
       if (!g) { g = []; groups.set(key, g); }

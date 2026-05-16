@@ -40,7 +40,7 @@
 /** @type {GameConfig} */
 export const CONFIG = {
   tile: 32,
-  mapW: 30,
+  mapW: 60,
   mapH: 20,
 
   colors: {
@@ -70,6 +70,7 @@ export const CONFIG = {
     barracks:      { hp: 250, w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['swordsman'] },
     archeryRange:  { hp: 220, w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['archer'] },
     arrowBuilding: { hp: 180, w: 2, h: 2, cost: { gold: 100, wood: 150 }, trains: [], woodCap: 20, arrowCap: 30, arrowTime: 1.5, woodPerArrow: 1 },
+    tower:         { hp: 250, w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], garrisonMax: 4, rangeMult: 1.5, dmgMult: 2 },
     goldMine:      { hp: 1000, w: 2, h: 2, cost: null, trains: [] },
   },
 

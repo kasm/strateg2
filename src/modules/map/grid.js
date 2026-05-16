@@ -13,7 +13,7 @@ export function buildEmptyGrid(w, h) {
 // Default forest layout for the stock map. Each entry: [tileX, tileY, width, height].
 const DEFAULT_FORESTS = [
   [3, 4, 5, 3], [4, 14, 5, 3],
-  [22, 4, 5, 3], [23, 14, 5, 3],
+  [52, 4, 5, 3], [51, 14, 5, 3],
 ];
 
 export function paintDefaultForests(tiles, w, h, woodPerTile) {

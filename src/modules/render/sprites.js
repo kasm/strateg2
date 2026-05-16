@@ -12,6 +12,7 @@ export function buildingLabel(b) {
   if (b.kind === 'townHall')      return 'TH';
   if (b.kind === 'barracks')      return 'Barracks';
   if (b.kind === 'archeryRange')  return 'Archery';
+  if (b.kind === 'tower')         return `Tower ${b.garrison.length}/4`;
   return b.kind;
 }
 
@@ -20,6 +21,7 @@ const FILL_BY_KIND = {
   barracks:      '#5e3b2a',
   archeryRange:  '#3b5e2a',
   arrowBuilding: '#8a7a3a',
+  tower:         '#6e6e6e',
 };
 
 export function drawBuilding(ctx, b, config, state) {

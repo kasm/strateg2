@@ -8,12 +8,18 @@ export function archerStep(u, tgt, dt, { state, config, map, units }) {
   const ty = tgt.type === 'building' ? (tgt.tileY + tgt.h / 2) * config.tile : tgt.y;
   const d = distanceToTarget(u, tgt, config.tile);
 
+  const inTower = u.insideBuilding && u.insideBuilding.kind === 'tower';
+  const rangeMul = inTower ? config.building.tower.rangeMult : 1;
+  const dmgMul   = inTower ? config.building.tower.dmgMult   : 1;
+  const rangePx = def.range * rangeMul * config.tile;
+
   if (u.arrows <= 0) {
     u.job = null; u.jobTarget = null; u.state = 'idle';
     return;
   }
 
-  if (d > def.range * config.tile) {
+  if (d > rangePx) {
+    if (inTower) { u.path = []; return; }
     if (!u.path || u.path.length === 0) {
       const dx = Math.sign(tx - u.x), dy = Math.sign(ty - u.y);
       const goalX = u.tileX + dx * 3, goalY = u.tileY + dy * 3;
@@ -26,13 +32,13 @@ export function archerStep(u, tgt, dt, { state, config, map, units }) {
 
   u.path = [];
   if (u.cooldown <= 0) {
-    spawnArrow(state, config, u, tgt);
+    spawnArrow(state, config, u, tgt, dmgMul);
     u.arrows -= 1;
     u.cooldown = def.cooldown;
   }
 }
 
-function spawnArrow(state, config, from, tgt) {
+function spawnArrow(state, config, from, tgt, dmgMul = 1) {
   const speed = config.arrowSpeed * config.tile;
   const { x: tx, y: ty } = leadingAimPoint(from, tgt, config, speed);
   const dx = tx - from.x, dy = ty - from.y;
@@ -42,7 +48,7 @@ function spawnArrow(state, config, from, tgt) {
     vx: dx / dist * speed,
     vy: dy / dist * speed,
     target: tgt,
-    dmg: config.unit.archer.dmg,
+    dmg: config.unit.archer.dmg * dmgMul,
     owner: from.owner,
     life: 3.0,
   });
