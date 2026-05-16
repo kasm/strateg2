@@ -44,3 +44,4 @@ Desktop.ini
 # Claude / AI scratch
 not_for_AI.txt
 .claude/settings.local.json
+package-lock.json
