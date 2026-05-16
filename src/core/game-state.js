@@ -38,6 +38,7 @@ export function createGameState(config) {
     hoverTile: null,
     alwaysHit: true,
     stackMode: 'spread',
+    autoFight: { red: false, blue: true },
     _nextId: 1,
   };
 }

@@ -1,21 +1,21 @@
 // Internal: try to place a blue-owned building near a hint tile. Spends resources if it lands.
 // Falls back to scanning outward from the player's town hall when the hint area is full.
 
-export function tryAIBuild(kind, hintX, hintY, { state, config, map, entities }) {
+export function tryAIBuild(kind, hintX, hintY, { state, config, map, entities, owner }) {
   const def = config.building[kind];
-  const me = state.players.blue;
+  const me = state.players[owner];
   if (me.gold < def.cost.gold || me.wood < def.cost.wood) return false;
 
   let spot = findGrassSpot(kind, hintX, hintY, 10, map);
   if (!spot) {
-    const th = entities.buildingsOf('blue').find(b => b.kind === 'townHall');
+    const th = entities.buildingsOf(owner).find(b => b.kind === 'townHall');
     if (th) spot = findGrassSpot(kind, th.tileX + 1, th.tileY + 1, 14, map);
   }
   if (!spot) return false;
 
   me.gold -= def.cost.gold;
   me.wood -= def.cost.wood;
-  entities.makeBuilding(kind, 'blue', spot.x, spot.y);
+  entities.makeBuilding(kind, owner, spot.x, spot.y);
   return true;
 }
 

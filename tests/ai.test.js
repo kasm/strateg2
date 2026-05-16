@@ -66,4 +66,29 @@ describe('AI module', () => {
     const th = entities.buildingsOf('blue').find(b => b.kind === 'townHall');
     expect(th.trainQueue.length).toBe(0);
   });
+
+  it('does not act on red while autoFight.red is off', () => {
+    const { state, entities, ai } = wire();
+    entities.spawnInitial();
+    state.players.red.gold = 10000;
+    ai.updateAI(2.0);
+    const peasants = entities.unitsOf('red').filter(p => p.kind === 'peasant');
+    expect(peasants.every(p => !p.job)).toBe(true);
+    const th = entities.buildingsOf('red').find(b => b.kind === 'townHall');
+    expect(th.trainQueue.length).toBe(0);
+  });
+
+  it('drives red when autoFight.red is enabled', () => {
+    const { state, entities, ai } = wire();
+    entities.spawnInitial();
+    state.autoFight.red = true;
+    state.players.red.gold = 10000;
+    state.players.red.wood = 1000;
+    ai.updateAI(2.0);
+    const peasants = entities.unitsOf('red').filter(p => p.kind === 'peasant');
+    const assigned = peasants.filter(p => p.job === 'gatherGold' || p.job === 'gatherWood').length;
+    expect(assigned).toBe(peasants.length);
+    const built = entities.buildingsOf('red').some(b => b.kind === 'arrowBuilding');
+    expect(built).toBe(true);
+  });
 });

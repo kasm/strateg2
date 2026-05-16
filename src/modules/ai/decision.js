@@ -12,8 +12,8 @@ import { tryAIBuild } from './build-order.js';
 
 const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange'];
 
-export function aiDecide(state, config, entities, map, ai) {
-  const owner = 'blue';
+export function aiDecide(state, config, entities, map, ai, owner) {
+  const enemy = owner === 'red' ? 'blue' : 'red';
   const me = state.players[owner];
   const myUnits     = entities.unitsOf(owner);
   const myBuildings = entities.buildingsOf(owner);
@@ -37,12 +37,12 @@ export function aiDecide(state, config, entities, map, ai) {
   }
 
   // 2. Build economy. Independent branches so a flush tick can place more than one.
-  const deps = { state, config, map, entities };
+  const deps = { state, config, map, entities, owner };
   for (const kind of ECONOMY_ORDER) {
     if (has(kind)) continue;
     const cost = config.building[kind].cost;
     if (me.gold < cost.gold || me.wood < cost.wood) continue;
-    tryAIBuild(kind, ...hintFor(kind), deps);
+    tryAIBuild(kind, ...hintFor(kind, owner), deps);
   }
 
   // 3. Peasant trickle — gated so we don't drain gold needed for the next building.
@@ -69,9 +69,12 @@ export function aiDecide(state, config, entities, map, ai) {
 
   // 5. Wave attack.
   if (ai.waveTimer <= 0 && army.length >= config.ai.armyThreshold) {
+    const myTH = myBuildings.find(b => b.kind === 'townHall');
+    const fromX = myTH ? (myTH.tileX + 1) * config.tile : 5 * config.tile;
+    const fromY = myTH ? (myTH.tileY + 1) * config.tile : 10 * config.tile;
     const target = entities.nearestOf(
-      e => e.type === 'building' && e.owner === 'red',
-      5 * config.tile, 10 * config.tile,
+      e => e.type === 'building' && e.owner === enemy,
+      fromX, fromY,
     );
     if (target) {
       for (const u of army) { u.job = 'attack'; u.jobTarget = target; }
@@ -80,9 +83,19 @@ export function aiDecide(state, config, entities, map, ai) {
   }
 }
 
-// Hint tiles next to blue's town hall (TH at 26-28, 8-10; forests at 22-26,4-6 and 23-27,14-16;
-// gold mine at 24-25, 9-10). All chosen to be on grass so placement succeeds at radius 0.
-function hintFor(kind) {
+// Hint tiles near each owner's town hall. The findGrassSpot ring search relaxes outward,
+// so these are starting points rather than required exact placements.
+//   blue TH 26-28,8-10 — forests 22-26,4-6 + 23-27,14-16 — gold mine 24-25,9-10
+//   red  TH  1-3,8-10 — forests  3-7,4-6 +  4-8,14-16 — gold mine  4-5,9-10
+function hintFor(kind, owner) {
+  if (owner === 'red') {
+    switch (kind) {
+      case 'arrowBuilding': return [5, 11];
+      case 'barracks':      return [6, 7];
+      case 'archeryRange':  return [3, 12];
+      default:              return [6, 7];
+    }
+  }
   switch (kind) {
     case 'arrowBuilding': return [22, 11];
     case 'barracks':      return [22, 8];

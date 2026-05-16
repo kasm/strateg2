@@ -1,4 +1,6 @@
-// PUBLIC API of the AI module. Drives the blue computer player.
+// PUBLIC API of the AI module. Drives any player flagged in state.autoFight.
+// Runs once per `decideEvery` per owner. Blue auto-fight defaults on; red is opt-in
+// via the HUD checkbox.
 
 import { aiDecide } from './decision.js';
 
@@ -18,19 +20,31 @@ import { aiDecide } from './decision.js';
  * @returns {AIModule}
  */
 export function createAI({ state, config, entities, map }) {
-  const ai = { decideTimer: 0, waveTimer: 0 };
+  const timers = {
+    red:  { decideTimer: 0, waveTimer: 0 },
+    blue: { decideTimer: 0, waveTimer: 0 },
+  };
 
   function updateAI(dt) {
     if (state.gameOver) return;
-    ai.decideTimer -= dt;
-    ai.waveTimer   -= dt;
-    if (ai.decideTimer > 0) return;
-    ai.decideTimer = config.ai.decideEvery;
-    aiDecide(state, config, entities, map, ai);
+    for (const owner of ['red', 'blue']) {
+      if (!state.autoFight[owner]) continue;
+      const t = timers[owner];
+      t.decideTimer -= dt;
+      t.waveTimer   -= dt;
+      if (t.decideTimer > 0) continue;
+      t.decideTimer = config.ai.decideEvery;
+      aiDecide(state, config, entities, map, t, owner);
+    }
   }
 
   return {
     updateAI,
-    resetAI() { ai.decideTimer = 0; ai.waveTimer = 0; },
+    resetAI() {
+      for (const owner of ['red', 'blue']) {
+        timers[owner].decideTimer = 0;
+        timers[owner].waveTimer = 0;
+      }
+    },
   };
 }
