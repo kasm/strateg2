@@ -5,6 +5,22 @@
 
 export function stepProjectiles(dt, { state, config, entities }) {
   for (const p of state.projectiles) {
+    // Always-hit mode: re-aim the arrow at the target's current position each frame,
+    // preserving its current speed. The existing segment-circle hit check then registers
+    // a hit naturally the frame the homing arrow enters the 16-px radius.
+    if (state.alwaysHit && p.target && p.target.hp > 0) {
+      const speed = Math.hypot(p.vx, p.vy);
+      const tx = p.target.type === 'building'
+        ? (p.target.tileX + p.target.w / 2) * config.tile
+        : p.target.x;
+      const ty = p.target.type === 'building'
+        ? (p.target.tileY + p.target.h / 2) * config.tile
+        : p.target.y;
+      const ddx = tx - p.x, ddy = ty - p.y;
+      const dd = Math.hypot(ddx, ddy) || 1;
+      p.vx = ddx / dd * speed;
+      p.vy = ddy / dd * speed;
+    }
     const x0 = p.x, y0 = p.y;
     p.x += p.vx * dt;
     p.y += p.vy * dt;

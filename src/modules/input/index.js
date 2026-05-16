@@ -79,6 +79,12 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
       });
     });
 
+    const alwaysHitEl = document.getElementById('always-hit');
+    if (alwaysHitEl) {
+      alwaysHitEl.checked = state.alwaysHit;
+      alwaysHitEl.addEventListener('change', () => { state.alwaysHit = alwaysHitEl.checked; });
+    }
+
     if (onRestart) {
       document.getElementById('restart').addEventListener('click', onRestart);
     }

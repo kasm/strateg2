@@ -36,6 +36,7 @@ export function createGameState(config) {
     trainFrom: null,
     gameOver: null,
     hoverTile: null,
+    alwaysHit: true,
     _nextId: 1,
   };
 }
