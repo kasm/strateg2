@@ -12,7 +12,7 @@ export function updateHUD(state, config, entities) {
   if (state.selected.length === 0) {
     info.textContent = '(no selection)';
   } else if (state.selected.length === 1) {
-    info.textContent = describeEntity(state.selected[0], config);
+    info.textContent = describeEntity(state.selected[0], config, entities);
   } else {
     info.textContent = describeSelection(state.selected);
   }
@@ -46,7 +46,7 @@ function unitLine(u) {
   return `${u.kind} ${hp}`;
 }
 
-function describeEntity(e, config) {
+function describeEntity(e, config, entities) {
   if (e.type === 'unit') {
     let s = `${e.kind} (${e.owner})\nHP ${Math.ceil(e.hp)}/${e.maxHp}`;
     if (e.kind === 'archer') s += `\nArrows: ${e.arrows}/${config.unit.archer.quiverMax}`;
@@ -61,9 +61,12 @@ function describeEntity(e, config) {
   }
   if (e.kind === 'tower') {
     const max = config.building.tower.garrisonMax;
-    s += `\nGarrison: ${e.garrison.length}/${max}`;
+    s += `\nGarrison: ${e.garrisonIds.length}/${max}`;
     s += `\nArrows: ${e.arrows}/${config.building.tower.arrowCap}`;
-    for (const a of e.garrison) s += `\n  archer ${Math.ceil(a.hp)}/${a.maxHp} (${a.arrows}a)`;
+    for (const aId of e.garrisonIds) {
+      const a = entities.byId(aId);
+      if (a) s += `\n  archer ${Math.ceil(a.hp)}/${a.maxHp} (${a.arrows}a)`;
+    }
   }
   if (e.kind === 'goldMine')          s += `\nGold left: ${e.gold}`;
   if (e.trainQueue && e.trainQueue.length) {

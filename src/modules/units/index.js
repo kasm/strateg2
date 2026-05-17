@@ -41,12 +41,12 @@ export function createUnits({ state, config, map, pathfinding, entities, combat 
     for (const u of state.entities) {
       if (u.type !== 'unit' || u.hp <= 0) continue;
       if (u.cooldown > 0) u.cooldown -= dt;
-      if (u.insideBuilding) {
-        const b = u.insideBuilding;
-        u.x = (b.tileX + b.w / 2) * config.tile;
-        u.y = (b.tileY + b.h / 2) * config.tile;
-        u.tileX = b.tileX + Math.floor(b.w / 2);
-        u.tileY = b.tileY + Math.floor(b.h / 2);
+      const inside = entities.byId(u.insideBuildingId);
+      if (inside) {
+        u.x = (inside.tileX + inside.w / 2) * config.tile;
+        u.y = (inside.tileY + inside.h / 2) * config.tile;
+        u.tileX = inside.tileX + Math.floor(inside.w / 2);
+        u.tileY = inside.tileY + Math.floor(inside.h / 2);
         u.path = null;
       }
       switch (u.kind) {

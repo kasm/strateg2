@@ -17,7 +17,7 @@ export function updateMeleeUnit(u, dt, deps) {
       ? Math.hypot(u.x - (enemy.tileX + enemy.w / 2) * config.tile,
                    u.y - (enemy.tileY + enemy.h / 2) * config.tile)
       : Math.hypot(u.x - enemy.x, u.y - enemy.y);
-    if (d <= config.tile * 4) { u.job = 'attack'; u.jobTarget = enemy; return; }
+    if (d <= config.tile * 4) { u.job = 'attack'; u.jobTargetId = enemy.id; return; }
   }
   moveAlongPath(u, dt, deps);
 }

@@ -1,5 +1,9 @@
 // Internal: peasant gather + haul state machines.
 // Each `do*` advances one tick of a multi-stage cycle: travel -> work -> travel-back -> deposit.
+//
+// Entity-to-entity refs are stored as IDs (u.jobTargetId, u.targetId, u.insideBuildingId);
+// resolve them via entities.byId() at the top of each function and work with the resolved
+// objects locally.
 
 import { setMoveTarget, moveAdjacentTo, moveAlongPath } from './movement.js';
 
@@ -17,8 +21,15 @@ export function tryAutoLogistics(u, { state, config, entities }) {
   const hasArrowJob = ab.arrows > 0 && consumer != null;
   const hasWoodJob  = woodDeficit > 0 && haveWood;
 
-  const assignArrows = () => { u.job = 'haulArrows'; u.jobTarget = consumer; u.target = ab; };
-  const assignWood   = () => { u.job = 'haulWood';   u.jobTarget = ab; };
+  const assignArrows = () => {
+    u.job = 'haulArrows';
+    u.jobTargetId = consumer.id;
+    u.targetId    = ab.id;
+  };
+  const assignWood = () => {
+    u.job = 'haulWood';
+    u.jobTargetId = ab.id;
+  };
 
   const pri = state.supplyPriority || 'auto';
   if (pri === 'wood') {
@@ -45,7 +56,7 @@ function findArrowConsumer(u, config, entities) {
         return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
       }
       if (e.type === 'building' && e.kind === 'tower') {
-        return e.garrison.length > 0 && e.arrows < config.building.tower.arrowCap;
+        return e.garrisonIds.length > 0 && e.arrows < config.building.tower.arrowCap;
       }
       return false;
     },
@@ -54,7 +65,7 @@ function findArrowConsumer(u, config, entities) {
 }
 
 export function doGather(u, dt, resource, deps) {
-  const { state, config, map, entities } = deps;
+  const { state, config, entities } = deps;
 
   if (u.carrying && u.carrying.kind === resource && u.carrying.amount > 0) {
     // Return to town hall to deposit.
@@ -82,13 +93,13 @@ export function doGather(u, dt, resource, deps) {
 
 function gatherGold(u, dt, deps) {
   const { config, entities } = deps;
-  let mine = u.jobTarget;
+  let mine = entities.byId(u.jobTargetId);
   if (!mine || mine.hp <= 0 || mine.gold <= 0) {
     mine = entities.nearestOf(
       e => e.type === 'building' && e.kind === 'goldMine' && e.gold > 0,
       u.x, u.y,
     );
-    u.jobTarget = mine;
+    u.jobTargetId = mine ? mine.id : null;
   }
   if (!mine) { u.job = null; return; }
   const insideX = u.tileX >= mine.tileX && u.tileX < mine.tileX + mine.w;
@@ -160,11 +171,11 @@ export function findNearestForestTile(map, px, py, tileSize) {
 }
 
 export function doHaulWood(u, dt, deps) {
-  const { state, config } = deps;
-  const ab = u.jobTarget;
-  if (!ab || ab.hp <= 0) { u.job = null; u.jobTarget = null; return; }
+  const { state, config, entities } = deps;
+  const ab = entities.byId(u.jobTargetId);
+  if (!ab || ab.hp <= 0) { u.job = null; u.jobTargetId = null; return; }
   const def = config.building.arrowBuilding;
-  if (ab.wood >= def.woodCap) { u.job = null; u.jobTarget = null; return; }
+  if (ab.wood >= def.woodCap) { u.job = null; u.jobTargetId = null; return; }
 
   if (u.carrying && u.carrying.kind === 'wood') {
     const adj = Math.abs(u.tileX - (ab.tileX + 0.5)) <= 1.5 &&
@@ -183,8 +194,8 @@ export function doHaulWood(u, dt, deps) {
   }
 
   // Pick wood up at the town hall stockpile.
-  if (state.players[u.owner].wood <= 0) { u.job = null; u.jobTarget = null; return; }
-  const th = deps.entities.nearestOf(
+  if (state.players[u.owner].wood <= 0) { u.job = null; u.jobTargetId = null; return; }
+  const th = entities.nearestOf(
     e => e.type === 'building' && e.kind === 'townHall' && e.owner === u.owner,
     u.x, u.y,
   );
@@ -202,15 +213,15 @@ export function doHaulWood(u, dt, deps) {
 
 export function doHaulArrows(u, dt, deps) {
   const { config, entities } = deps;
-  const ab = u.target;
-  let consumer = u.jobTarget;
+  const ab = entities.byId(u.targetId);
+  let consumer = entities.byId(u.jobTargetId);
   if (!ab || ab.hp <= 0) { u.job = null; return; }
   if (!consumerStillValid(consumer, u.owner, config)) {
     consumer = entities.nearestOf(
       e => isArrowConsumer(e, u.owner, config),
       u.x, u.y,
     );
-    u.jobTarget = consumer;
+    u.jobTargetId = consumer ? consumer.id : null;
     if (!consumer) { u.job = null; return; }
   }
 
@@ -249,7 +260,7 @@ function isArrowConsumer(e, owner, config) {
     return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
   }
   if (e.type === 'building' && e.kind === 'tower') {
-    return e.garrison.length > 0 && e.arrows < config.building.tower.arrowCap;
+    return e.garrisonIds.length > 0 && e.arrows < config.building.tower.arrowCap;
   }
   return false;
 }
@@ -257,10 +268,10 @@ function isArrowConsumer(e, owner, config) {
 function consumerStillValid(c, owner, config) {
   if (!c || c.hp <= 0 || c.owner !== owner) return false;
   if (c.type === 'unit') {
-    return !c.insideBuilding && c.arrows < config.unit.archer.quiverMax;
+    return c.insideBuildingId == null && c.arrows < config.unit.archer.quiverMax;
   }
   if (c.type === 'building' && c.kind === 'tower') {
-    return c.garrison.length > 0 && c.arrows < config.building.tower.arrowCap;
+    return c.garrisonIds.length > 0 && c.arrows < config.building.tower.arrowCap;
   }
   return false;
 }
@@ -279,9 +290,12 @@ function consumerDepositAdjacent(u, c, config) {
 }
 
 export function doAttack(u, dt, deps) {
-  const { combat } = deps;
-  const tgt = u.jobTarget;
-  if (!tgt || tgt.hp <= 0) { u.job = null; u.jobTarget = null; u.state = 'idle'; return; }
+  const { combat, entities } = deps;
+  const tgt = entities.byId(u.jobTargetId);
+  if (!tgt || tgt.hp <= 0) {
+    u.job = null; u.jobTargetId = null; u.state = 'idle';
+    return;
+  }
   if (u.kind === 'archer') { combat.archerAttack(u, tgt, dt); return; }
   combat.meleeAttack(u, tgt, dt);
 }

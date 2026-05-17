@@ -1,12 +1,13 @@
 // Internal: raw mouse + DOM-button bindings. Mutates the shared `mouse` record
-// (so render can draw the drag rect) and dispatches into command helpers.
+// (so render can draw the drag rect) and translates input into commands. Sim state
+// is never mutated here — orders/builds go through the commands dispatcher.
 
 import {
-  selectInRect, handleLeftClick, issueOrder, attemptBuild,
+  selectInRect, handleLeftClick, submitOrderForSelected, submitBuild,
 } from './commands.js';
 
 export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
-  const { state, map, entities } = deps;
+  const { state, map } = deps;
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -16,7 +17,7 @@ export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
     if (e.button === 0) {
       if (state.buildMode) {
         const tile = map.worldToTile(x, y);
-        attemptBuild(tile.x, tile.y, deps);
+        submitBuild(tile.x, tile.y, deps);
         return;
       }
       mouse.dragStart = { x, y };
@@ -58,8 +59,5 @@ function handleRightClick(x, y, deps) {
   if (state.selected.length === 0) return;
   const tgt  = entities.findEntityAt(x, y);
   const tile = map.worldToTile(x, y);
-  for (const u of state.selected) {
-    if (u.type !== 'unit' || u.owner !== 'red') continue;
-    issueOrder(u, tgt, tile, deps);
-  }
+  submitOrderForSelected(tgt, tile, deps);
 }

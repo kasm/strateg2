@@ -2,19 +2,20 @@
 
 import { distanceToTarget } from './geometry.js';
 
-export function archerStep(u, tgt, dt, { state, config, map, units }) {
+export function archerStep(u, tgt, dt, { state, config, map, units, entities }) {
   const def = config.unit.archer;
   const tx = tgt.type === 'building' ? (tgt.tileX + tgt.w / 2) * config.tile : tgt.x;
   const ty = tgt.type === 'building' ? (tgt.tileY + tgt.h / 2) * config.tile : tgt.y;
   const d = distanceToTarget(u, tgt, config.tile);
 
-  const inTower = u.insideBuilding && u.insideBuilding.kind === 'tower';
+  const inside = entities.byId(u.insideBuildingId);
+  const inTower = inside && inside.kind === 'tower';
   const rangeMul = inTower ? config.building.tower.rangeMult : 1;
   const dmgMul   = inTower ? config.building.tower.dmgMult   : 1;
   const rangePx = def.range * rangeMul * config.tile;
 
   if (u.arrows <= 0) {
-    u.job = null; u.jobTarget = null; u.state = 'idle';
+    u.job = null; u.jobTargetId = null; u.state = 'idle';
     return;
   }
 
@@ -47,7 +48,7 @@ function spawnArrow(state, config, from, tgt, dmgMul = 1) {
     x: from.x, y: from.y,
     vx: dx / dist * speed,
     vy: dy / dist * speed,
-    target: tgt,
+    targetId: tgt.id,
     dmg: config.unit.archer.dmg * dmgMul,
     owner: from.owner,
     life: 3.0,

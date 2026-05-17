@@ -19,7 +19,7 @@ export function meleeStep(u, tgt, dt, { config, entities, units }) {
     u.cooldown = def.cooldown;
     if (tgt.hp <= 0) {
       entities.killEntity(tgt);
-      u.job = null; u.jobTarget = null; u.state = 'idle';
+      u.job = null; u.jobTargetId = null; u.state = 'idle';
     }
   }
 }

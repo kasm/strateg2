@@ -5,17 +5,18 @@
 
 export function stepProjectiles(dt, { state, config, entities }) {
   for (const p of state.projectiles) {
+    const target = entities.byId(p.targetId);
     // Always-hit mode: re-aim the arrow at the target's current position each frame,
     // preserving its current speed. The existing segment-circle hit check then registers
     // a hit naturally the frame the homing arrow enters the 16-px radius.
-    if (state.alwaysHit && p.target && p.target.hp > 0) {
+    if (state.alwaysHit && target && target.hp > 0) {
       const speed = Math.hypot(p.vx, p.vy);
-      const tx = p.target.type === 'building'
-        ? (p.target.tileX + p.target.w / 2) * config.tile
-        : p.target.x;
-      const ty = p.target.type === 'building'
-        ? (p.target.tileY + p.target.h / 2) * config.tile
-        : p.target.y;
+      const tx = target.type === 'building'
+        ? (target.tileX + target.w / 2) * config.tile
+        : target.x;
+      const ty = target.type === 'building'
+        ? (target.tileY + target.h / 2) * config.tile
+        : target.y;
       const ddx = tx - p.x, ddy = ty - p.y;
       const dd = Math.hypot(ddx, ddy) || 1;
       p.vx = ddx / dd * speed;
@@ -26,7 +27,7 @@ export function stepProjectiles(dt, { state, config, entities }) {
     p.y += p.vy * dt;
     p.life -= dt;
     if (p.life <= 0) { p.dead = true; continue; }
-    const hit = findHit(x0, y0, p.x, p.y, p, state.entities, config.tile);
+    const hit = findHit(x0, y0, p.x, p.y, p, target, state.entities, config.tile);
     if (hit) {
       hit.hp -= p.dmg;
       if (hit.hp <= 0) entities.killEntity(hit);
@@ -42,15 +43,17 @@ export function stepProjectiles(dt, { state, config, entities }) {
 // target — otherwise a swordsman standing between archer and a building target
 // would never take damage. We also stay in flight after the assigned target
 // dies (focus-fire would otherwise waste every arrow already on the way).
-function findHit(x0, y0, x1, y1, p, entities, tile) {
+function findHit(x0, y0, x1, y1, p, target, entities, tile) {
   for (const e of entities) {
     if (e.type !== 'unit' || e.hp <= 0) continue;
-    if (e.insideBuilding) continue;
+    if (e.insideBuildingId != null) continue;
     if (!e.owner || e.owner === p.owner || e.owner === 'neutral') continue;
     if (segmentCircle(x0, y0, x1, y1, e.x, e.y, tile * 0.5)) return e;
   }
-  const t = p.target;
-  if (t && t.hp > 0 && !t.insideBuilding && segmentHitsTarget(x0, y0, x1, y1, t, tile)) return t;
+  if (target && target.hp > 0 && target.insideBuildingId == null &&
+      segmentHitsTarget(x0, y0, x1, y1, target, tile)) {
+    return target;
+  }
   return null;
 }
 

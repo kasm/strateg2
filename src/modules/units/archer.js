@@ -18,27 +18,28 @@ export function updateArcherUnit(u, dt, deps) {
         ? Math.hypot(u.x - (enemy.tileX + enemy.w / 2) * config.tile,
                      u.y - (enemy.tileY + enemy.h / 2) * config.tile)
         : Math.hypot(u.x - enemy.x, u.y - enemy.y);
-      const inTower = u.insideBuilding && u.insideBuilding.kind === 'tower';
+      const inside = entities.byId(u.insideBuildingId);
+      const inTower = inside && inside.kind === 'tower';
       const range = config.unit.archer.range * (inTower ? config.building.tower.rangeMult : 1);
       if (d <= range * config.tile) {
-        u.job = 'attack'; u.jobTarget = enemy; return;
+        u.job = 'attack'; u.jobTargetId = enemy.id; return;
       }
     }
   }
-  if (u.insideBuilding) return;
+  if (u.insideBuildingId != null) return;
   moveAlongPath(u, dt, deps);
 }
 
 export function ejectFromTower(u, deps) {
-  const { config, map, pathfinding } = deps;
-  const tower = u.insideBuilding;
+  const { map, pathfinding, entities } = deps;
+  const tower = entities.byId(u.insideBuildingId);
   if (!tower) return;
-  const i = tower.garrison.indexOf(u);
-  if (i !== -1) tower.garrison.splice(i, 1);
-  u.insideBuilding = null;
+  const i = tower.garrisonIds.indexOf(u.id);
+  if (i !== -1) tower.garrisonIds.splice(i, 1);
+  u.insideBuildingId = null;
   u.path = null;
   u.job = null;
-  u.jobTarget = null;
+  u.jobTargetId = null;
   const spot = pathfinding.findAdjacentWalkable(tower.tileX, tower.tileY, tower.w, tower.h, u.x, u.y);
   if (spot) {
     u.tileX = spot.x; u.tileY = spot.y;
@@ -48,30 +49,35 @@ export function ejectFromTower(u, deps) {
 }
 
 export function ejectAllFromTower(tower, deps) {
-  while (tower.garrison.length > 0) ejectFromTower(tower.garrison[0], deps);
+  const { entities } = deps;
+  while (tower.garrisonIds.length > 0) {
+    const u = entities.byId(tower.garrisonIds[0]);
+    if (!u) { tower.garrisonIds.shift(); continue; }
+    ejectFromTower(u, deps);
+  }
 }
 
 function doEnterTower(u, dt, deps) {
-  const { config } = deps;
-  const tower = u.jobTarget;
+  const { config, entities } = deps;
+  const tower = entities.byId(u.jobTargetId);
   if (!tower || tower.hp <= 0 || tower.kind !== 'tower' || tower.owner !== u.owner) {
-    u.job = null; u.jobTarget = null; return;
+    u.job = null; u.jobTargetId = null; return;
   }
-  if (tower.garrison.length >= config.building.tower.garrisonMax) {
-    u.job = null; u.jobTarget = null; return;
+  if (tower.garrisonIds.length >= config.building.tower.garrisonMax) {
+    u.job = null; u.jobTargetId = null; return;
   }
   const adj = u.tileX >= tower.tileX - 1 && u.tileX <= tower.tileX + tower.w &&
               u.tileY >= tower.tileY - 1 && u.tileY <= tower.tileY + tower.h;
   if (adj) {
-    tower.garrison.push(u);
-    u.insideBuilding = tower;
+    tower.garrisonIds.push(u.id);
+    u.insideBuildingId = tower.id;
     u.x = (tower.tileX + tower.w / 2) * config.tile;
     u.y = (tower.tileY + tower.h / 2) * config.tile;
     u.tileX = tower.tileX + Math.floor(tower.w / 2);
     u.tileY = tower.tileY + Math.floor(tower.h / 2);
     u.path = null;
     u.job = null;
-    u.jobTarget = null;
+    u.jobTargetId = null;
     return;
   }
   if (!u.path || u.path.length === 0) moveAdjacentTo(u, tower, deps);

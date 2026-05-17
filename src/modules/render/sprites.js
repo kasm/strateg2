@@ -12,7 +12,7 @@ export function buildingLabel(b) {
   if (b.kind === 'townHall')      return 'TH';
   if (b.kind === 'barracks')      return 'Barracks';
   if (b.kind === 'archeryRange')  return 'Archery';
-  if (b.kind === 'tower')         return `Tower ${b.garrison.length}/4`;
+  if (b.kind === 'tower')         return `Tower ${b.garrisonIds.length}/4`;
   return b.kind;
 }
 

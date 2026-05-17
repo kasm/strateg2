@@ -72,18 +72,18 @@ export function aiDecide(state, config, entities, map, ai, owner) {
   if (towers.length > 0) {
     const gMax = config.building.tower.garrisonMax;
     const idleArchers = myUnits.filter(u =>
-      u.kind === 'archer' && !u.insideBuilding && (u.job == null || u.job === 'attack')
+      u.kind === 'archer' && u.insideBuildingId == null && (u.job == null || u.job === 'attack')
     );
     for (const a of idleArchers) {
       let best = null, bd = Infinity;
       for (const t of towers) {
-        if (t.garrison.length >= gMax) continue;
+        if (t.garrisonIds.length >= gMax) continue;
         const cx = (t.tileX + t.w / 2) * config.tile;
         const cy = (t.tileY + t.h / 2) * config.tile;
         const d = (cx - a.x) ** 2 + (cy - a.y) ** 2;
         if (d < bd) { bd = d; best = t; }
       }
-      if (best) { a.job = 'enterTower'; a.jobTarget = best; }
+      if (best) { a.job = 'enterTower'; a.jobTargetId = best.id; }
     }
   }
 
@@ -97,7 +97,7 @@ export function aiDecide(state, config, entities, map, ai, owner) {
       fromX, fromY,
     );
     if (target) {
-      for (const u of army) { u.job = 'attack'; u.jobTarget = target; }
+      for (const u of army) { u.job = 'attack'; u.jobTargetId = target.id; }
       ai.waveTimer = config.ai.waveCooldown;
     }
   }

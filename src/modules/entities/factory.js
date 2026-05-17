@@ -1,4 +1,8 @@
 // Internal: pure-ish entity constructors. Take everything they need as parameters.
+//
+// Entity-to-entity references are stored as numeric IDs (suffix `Id` / `Ids`), never as
+// object refs. Resolve via `entities.byId(id)` at read sites. This keeps sim state
+// serializable and snapshot-friendly for future multiplayer.
 
 export function makeUnitRecord(id, kind, owner, tileX, tileY, def, tileSize) {
   const cx = tileX * tileSize + tileSize / 2;
@@ -14,14 +18,15 @@ export function makeUnitRecord(id, kind, owner, tileX, tileY, def, tileSize) {
     maxHp: def.hp,
     state: 'idle',
     path: null,
-    target: null,
+    targetId: null,
     job: null,
-    jobTarget: null,
+    jobTargetId: null,
+    targetTile: null,
     carrying: null,
     cooldown: 0,
     arrows: kind === 'archer' ? Math.floor(def.quiverMax / 2) : 0,
     gatherTimer: 0,
-    insideBuilding: null,
+    insideBuildingId: null,
   };
 }
 
@@ -48,7 +53,7 @@ export function makeBuildingRecord(id, kind, owner, tileX, tileY, def, config) {
     b.gold = config.resources.goldPerMine;
   }
   if (kind === 'tower') {
-    b.garrison = [];
+    b.garrisonIds = [];
     b.arrows = 0;
     b.distributeTimer = 0;
   }

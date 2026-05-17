@@ -1,8 +1,11 @@
 // PUBLIC API of the input module.
 // Owns the canvas listeners and HUD button bindings, exposes the drag-rect for render to draw.
+//
+// All in-game actions (orders, builds, training, tower eject) are submitted as commands
+// via `commands.submit(...)`. This module never mutates entity state directly — only
+// client-local UI state (selection, build-mode, hover, option toggles) is set inline.
 
 import { bindMouse } from './mouse.js';
-import { ejectAllFromTower } from '../units/archer.js';
 
 /**
  * @typedef {Object} InputModule
@@ -21,13 +24,14 @@ import { ejectAllFromTower } from '../units/archer.js';
  *   entities:     import('../entities/index.js').EntitiesModule,
  *   units:        import('../units/index.js').UnitsModule,
  *   pathfinding:  import('../pathfinding/index.js').Pathfinding,
+ *   commands:     import('../../commands/index.js').CommandsModule,
  *   onRestart?:   () => void,
  * }} deps
  * @returns {InputModule}
  */
-export function createInput({ state, config, map, entities, units, pathfinding, onRestart }) {
+export function createInput({ state, config, map, entities, units, pathfinding, commands, onRestart }) {
   const mouse = { x: 0, y: 0, dragStart: null, dragRect: null };
-  const deps = { state, config, map, entities, units, pathfinding };
+  const deps = { state, config, map, entities, units, pathfinding, commands };
 
   function refreshBuildButtons() {
     document.querySelectorAll('#build-menu button').forEach(btn => {
@@ -60,7 +64,7 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
     const btn = document.getElementById('eject-button');
     if (!btn) return;
     const s = state.selected.length === 1 ? state.selected[0] : null;
-    const show = s && s.type === 'building' && s.kind === 'tower' && s.owner === 'red' && s.garrison && s.garrison.length > 0;
+    const show = s && s.type === 'building' && s.kind === 'tower' && s.owner === 'red' && s.garrisonIds && s.garrisonIds.length > 0;
     btn.style.display = show ? '' : 'none';
   }
 
@@ -82,11 +86,10 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
         const kind = btn.dataset.train;
         const b = state.trainFrom;
         if (!b || b.hp <= 0) return;
-        const def = config.unit[kind];
-        const me = state.players.red;
-        if (me.gold < def.cost.gold) return;
-        me.gold -= def.cost.gold;
-        b.trainQueue.push(kind);
+        commands.submit({
+          type: 'train', playerId: 'red',
+          buildingId: b.id, unitKind: kind,
+        });
       });
     });
 
@@ -123,8 +126,9 @@ export function createInput({ state, config, map, entities, units, pathfinding, 
       ejectBtn.addEventListener('click', () => {
         const s = state.selected[0];
         if (!s || s.type !== 'building' || s.kind !== 'tower' || s.owner !== 'red') return;
-        ejectAllFromTower(s, { config, map, pathfinding });
-        refreshEjectButton();
+        commands.submit({ type: 'eject', playerId: 'red', buildingId: s.id });
+        // Refresh on next animation frame so the post-drain garrison count is reflected.
+        requestAnimationFrame(refreshEjectButton);
       });
     }
   }
