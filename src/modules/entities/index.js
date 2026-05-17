@@ -62,7 +62,6 @@ export function createEntities({ state, config, map, pathfinding }) {
     state.entities.length = 0;
     state.entitiesById.clear();
     state.projectiles.length = 0;
-    state.selected.length = 0;
     state.gameOver = null;
     state.tick = 0;
     state.players.red.gold  = config.startResources.gold;
@@ -91,8 +90,7 @@ export function createEntities({ state, config, map, pathfinding }) {
     }
     e.hp = 0;
     e.state = 'dead';
-    const i = state.selected.indexOf(e);
-    if (i !== -1) state.selected.splice(i, 1);
+    // Selection is client-local; selected list is filtered against live entities at read time.
   }
 
   function pruneDead() {

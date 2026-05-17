@@ -1,6 +1,6 @@
 // Internal: text HUD (resources, selection info).
 
-export function updateHUD(state, config, entities) {
+export function updateHUD(state, client, config, entities, selectedLive) {
   const me = state.players.red;
   document.getElementById('gold').textContent = Math.floor(me.gold);
   document.getElementById('wood').textContent = Math.floor(me.wood);
@@ -9,12 +9,12 @@ export function updateHUD(state, config, entities) {
   if (arrowsTotal) arrowsTotal.textContent = totalRedArrows(state);
 
   const info = document.getElementById('selection-info');
-  if (state.selected.length === 0) {
+  if (selectedLive.length === 0) {
     info.textContent = '(no selection)';
-  } else if (state.selected.length === 1) {
-    info.textContent = describeEntity(state.selected[0], config, entities);
+  } else if (selectedLive.length === 1) {
+    info.textContent = describeEntity(selectedLive[0], config, entities);
   } else {
-    info.textContent = describeSelection(state.selected);
+    info.textContent = describeSelection(selectedLive);
   }
 }
 

@@ -1,6 +1,10 @@
 // PUBLIC API of the AI module. Drives any player flagged in state.autoFight.
 // Runs once per `decideEvery` per owner. Blue auto-fight defaults on; red is opt-in
 // via the HUD checkbox.
+//
+// AI does not mutate sim state directly: it inspects state read-only and submits
+// commands via the dispatcher, exactly like player input. Commands take effect at
+// the start of the next tick (deterministic ordering, see commands/).
 
 import { aiDecide } from './decision.js';
 
@@ -16,10 +20,11 @@ import { aiDecide } from './decision.js';
  *   config:   import('../../core/config.js').GameConfig,
  *   entities: import('../entities/index.js').EntitiesModule,
  *   map:      import('../map/index.js').MapModule,
+ *   commands: import('../../commands/index.js').CommandsModule,
  * }} deps
  * @returns {AIModule}
  */
-export function createAI({ state, config, entities, map }) {
+export function createAI({ state, config, entities, map, commands }) {
   const timers = {
     red:  { decideTimer: 0, waveTimer: 0 },
     blue: { decideTimer: 0, waveTimer: 0 },
@@ -34,7 +39,7 @@ export function createAI({ state, config, entities, map }) {
       t.waveTimer   -= dt;
       if (t.decideTimer > 0) continue;
       t.decideTimer = config.ai.decideEvery;
-      aiDecide(state, config, entities, map, t, owner);
+      aiDecide(state, config, entities, map, commands, t, owner);
     }
   }
 

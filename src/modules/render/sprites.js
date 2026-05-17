@@ -1,4 +1,7 @@
 // Internal: per-entity sprite drawing.
+//
+// `selectedIdSet` is a Set<id> built once per frame (see render/index.js); entities
+// check membership by id without dereferencing into client state.
 
 export function ownerColor(owner, light, colors) {
   if (owner === 'red')  return light ? colors.redLight  : colors.red;
@@ -24,7 +27,7 @@ const FILL_BY_KIND = {
   tower:         '#6e6e6e',
 };
 
-export function drawBuilding(ctx, b, config, state) {
+export function drawBuilding(ctx, b, config, selectedIdSet) {
   const tile = config.tile;
   const x = b.tileX * tile, y = b.tileY * tile;
   const w = b.w * tile,     h = b.h * tile;
@@ -34,7 +37,7 @@ export function drawBuilding(ctx, b, config, state) {
   ctx.strokeStyle = ownerColor(b.owner, false, config.colors);
   ctx.lineWidth = 3;
   ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-  if (state.selected.includes(b)) {
+  if (selectedIdSet.has(b.id)) {
     ctx.strokeStyle = config.colors.select;
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
@@ -88,13 +91,13 @@ function drawCountBadge(ctx, x, y, n) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function drawUnitAt(ctx, u, cx, cy, r, config, state) {
+function drawUnitAt(ctx, u, cx, cy, r, config, selectedIdSet) {
   const dim = (u.kind === 'archer' && u.arrows <= 0);
   ctx.fillStyle = ownerColor(u.owner, dim, config.colors);
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   drawUnitShape(ctx, u.kind, cx, cy, r);
-  if (state.selected.includes(u)) {
+  if (selectedIdSet.has(u.id)) {
     ctx.strokeStyle = config.colors.select;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2); ctx.stroke();
@@ -109,8 +112,8 @@ function drawUnitAt(ctx, u, cx, cy, r, config, state) {
   }
 }
 
-export function drawUnit(ctx, u, config, state) {
-  drawUnitAt(ctx, u, u.x, u.y, config.tile * 0.35, config, state);
+export function drawUnit(ctx, u, config, selectedIdSet) {
+  drawUnitAt(ctx, u, u.x, u.y, config.tile * 0.35, config, selectedIdSet);
 }
 
 function stackOffsets(n, tile) {
@@ -126,8 +129,8 @@ function stackOffsets(n, tile) {
   return out;
 }
 
-export function drawUnitSpread(ctx, group, config, state) {
-  if (group.length === 1) { drawUnit(ctx, group[0], config, state); return; }
+export function drawUnitSpread(ctx, group, config, selectedIdSet) {
+  if (group.length === 1) { drawUnit(ctx, group[0], config, selectedIdSet); return; }
   const r = config.tile * 0.35;
   const sorted = group.slice().sort((a, b) => a.id - b.id);
   const offsets = stackOffsets(sorted.length, config.tile);
@@ -135,12 +138,12 @@ export function drawUnitSpread(ctx, group, config, state) {
   for (let i = 0; i < sorted.length; i++) {
     const u = sorted[i];
     const [dx, dy] = offsets[i];
-    drawUnitAt(ctx, u, cx + dx, cy + dy, r, config, state);
+    drawUnitAt(ctx, u, cx + dx, cy + dy, r, config, selectedIdSet);
   }
 }
 
-export function drawUnitStack(ctx, group, config, state) {
-  if (group.length === 1) { drawUnit(ctx, group[0], config, state); return; }
+export function drawUnitStack(ctx, group, config, selectedIdSet) {
+  if (group.length === 1) { drawUnit(ctx, group[0], config, selectedIdSet); return; }
 
   const r = config.tile * 0.35;
   const rep = group[0];
@@ -155,7 +158,7 @@ export function drawUnitStack(ctx, group, config, state) {
     sumHp += u.hp;
     sumMaxHp += u.maxHp;
     if (kind === 'archer') { sumArrows += u.arrows; if (u.arrows > 0) anyArrows = true; }
-    if (state.selected.includes(u)) selectedCount++;
+    if (selectedIdSet.has(u.id)) selectedCount++;
     if (u.carrying && !carrier) carrier = u;
   }
 

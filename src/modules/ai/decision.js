@@ -1,18 +1,24 @@
-// Internal: the blue player's once-per-`decideEvery` decision pass.
-// Priorities (top to bottom):
+// Internal: AI decision pass. Same priorities as the original direct-mutation version:
 //   1. Keep peasants assigned to gold/wood gathering; bias toward wood while arrowBuilding pending.
-//   2. Build economy in priority order: arrowBuilding -> barracks -> archeryRange.
+//   2. Build economy in priority order: arrowBuilding -> barracks -> archeryRange -> tower.
 //      Each is independent so multiple can land in one tick if affordable.
 //   3. Train more peasants up to ai.minPeasants — but only when the next pending
 //      economy building is comfortably afforded, so the trickle doesn't starve the build order.
 //   4. Train one combat unit at each combat building when affordable.
+//   4b. Auto-garrison idle archers into nearest tower with room.
 //   5. Once army >= ai.armyThreshold and waveCooldown elapsed, attack-move at the nearest red building.
+//
+// The AI never mutates simulation state — every decision is submitted as a command and
+// applied at the start of the next tick. A local resource budget (`goldBudget`/`woodBudget`)
+// and shadow trainQueue / tower-garrison counters mirror the projected post-drain state so
+// the AI never over-commits inside a single decide pass.
 
-import { tryAIBuild } from './build-order.js';
+import { findGrassSpot } from './build-order.js';
+import { findNearestForestTile } from '../units/logistics.js';
 
 const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange', 'tower'];
 
-export function aiDecide(state, config, entities, map, ai, owner) {
+export function aiDecide(state, config, entities, map, commands, ai, owner) {
   const enemy = owner === 'red' ? 'blue' : 'red';
   const me = state.players[owner];
   const myUnits     = entities.unitsOf(owner);
@@ -24,80 +30,130 @@ export function aiDecide(state, config, entities, map, ai, owner) {
   const townHall = myBuildings.find(b => b.kind === 'townHall');
   const pendingEconomy = ECONOMY_ORDER.find(k => !has(k));
 
-  // 1. Assign idle peasants. Bias to wood while arrowBuilding (150 wood) is still pending and
-  //    wood stockpile is thin; otherwise keep the 50/50 balance.
+  let goldBudget = me.gold;
+  let woodBudget = me.wood;
+  // Shadow per-building trainQueue lengths so multi-train caps survive within one pass.
+  const queueLen = b => b.trainQueue.length;
+  let thQueue = townHall ? queueLen(townHall) : 0;
+
+  // 1. Assign idle peasants. Bias to wood while arrowBuilding is pending and wood is thin.
   let goldCount = peasants.filter(p => p.job === 'gatherGold').length;
   let woodCount = peasants.filter(p => p.job === 'gatherWood').length;
   const woodBias = !has('arrowBuilding') && me.wood < 200;
   for (const p of peasants) {
     if (p.job) continue;
     const preferWood = woodBias ? woodCount < goldCount + 2 : woodCount < goldCount;
-    if (preferWood) { p.job = 'gatherWood'; woodCount++; }
-    else            { p.job = 'gatherGold'; goldCount++; }
+    if (preferWood) {
+      const tile = findNearestForestTile(map, p.x, p.y, config.tile);
+      if (tile) {
+        commands.submit({
+          type: 'order', playerId: owner, unitIds: [p.id],
+          target: { kind: 'tile', x: tile.x, y: tile.y },
+        });
+        woodCount++;
+      }
+    } else {
+      const mine = entities.nearestOf(
+        e => e.type === 'building' && e.kind === 'goldMine' && e.gold > 0,
+        p.x, p.y,
+      );
+      if (mine) {
+        commands.submit({
+          type: 'order', playerId: owner, unitIds: [p.id],
+          target: { kind: 'entity', id: mine.id },
+        });
+        goldCount++;
+      }
+    }
   }
 
   // 2. Build economy. Independent branches so a flush tick can place more than one.
-  const deps = { state, config, map, entities, owner };
   for (const kind of ECONOMY_ORDER) {
     if (has(kind)) continue;
     const cost = config.building[kind].cost;
-    if (me.gold < cost.gold || me.wood < cost.wood) continue;
-    tryAIBuild(kind, ...hintFor(kind, owner), deps);
+    if (goldBudget < cost.gold || woodBudget < cost.wood) continue;
+    const [hx, hy] = hintFor(kind, owner);
+    let spot = findGrassSpot(kind, hx, hy, 10, map);
+    if (!spot && townHall) spot = findGrassSpot(kind, townHall.tileX + 1, townHall.tileY + 1, 14, map);
+    if (!spot) continue;
+    commands.submit({
+      type: 'build', playerId: owner, kind, tileX: spot.x, tileY: spot.y,
+    });
+    goldBudget -= cost.gold;
+    woodBudget -= cost.wood;
   }
 
   // 3. Peasant trickle — gated so we don't drain gold needed for the next building.
-  if (townHall && peasants.length < config.ai.minPeasants && townHall.trainQueue.length < 2) {
+  if (townHall && peasants.length < config.ai.minPeasants && thQueue < 2) {
     const peasantCost = config.unit.peasant.cost.gold;
     const reserve = pendingEconomy ? config.building[pendingEconomy].cost.gold + 50 : 0;
-    if (me.gold >= peasantCost + reserve) {
-      me.gold -= peasantCost;
-      townHall.trainQueue.push('peasant');
+    if (goldBudget >= peasantCost + reserve) {
+      commands.submit({
+        type: 'train', playerId: owner, buildingId: townHall.id, unitKind: 'peasant',
+      });
+      goldBudget -= peasantCost;
+      thQueue++;
     }
   }
 
   // 4. Train combat units at each combat building.
   const barracks = myBuildings.find(b => b.kind === 'barracks');
-  if (barracks && barracks.trainQueue.length < 2 && me.gold >= config.unit.swordsman.cost.gold) {
-    me.gold -= config.unit.swordsman.cost.gold;
-    barracks.trainQueue.push('swordsman');
+  if (barracks && queueLen(barracks) < 2 && goldBudget >= config.unit.swordsman.cost.gold) {
+    commands.submit({
+      type: 'train', playerId: owner, buildingId: barracks.id, unitKind: 'swordsman',
+    });
+    goldBudget -= config.unit.swordsman.cost.gold;
   }
   const range = myBuildings.find(b => b.kind === 'archeryRange');
-  if (range && range.trainQueue.length < 2 && me.gold >= config.unit.archer.cost.gold) {
-    me.gold -= config.unit.archer.cost.gold;
-    range.trainQueue.push('archer');
+  if (range && queueLen(range) < 2 && goldBudget >= config.unit.archer.cost.gold) {
+    commands.submit({
+      type: 'train', playerId: owner, buildingId: range.id, unitKind: 'archer',
+    });
+    goldBudget -= config.unit.archer.cost.gold;
   }
 
   // 4b. Auto-garrison idle archers into nearest tower with room.
   const towers = myBuildings.filter(b => b.kind === 'tower');
   if (towers.length > 0) {
     const gMax = config.building.tower.garrisonMax;
+    // Shadow garrison count so a single pass doesn't oversubscribe one tower.
+    const shadow = new Map(towers.map(t => [t.id, t.garrisonIds.length]));
     const idleArchers = myUnits.filter(u =>
       u.kind === 'archer' && u.insideBuildingId == null && (u.job == null || u.job === 'attack')
     );
     for (const a of idleArchers) {
       let best = null, bd = Infinity;
       for (const t of towers) {
-        if (t.garrisonIds.length >= gMax) continue;
+        if (shadow.get(t.id) >= gMax) continue;
         const cx = (t.tileX + t.w / 2) * config.tile;
         const cy = (t.tileY + t.h / 2) * config.tile;
         const d = (cx - a.x) ** 2 + (cy - a.y) ** 2;
         if (d < bd) { bd = d; best = t; }
       }
-      if (best) { a.job = 'enterTower'; a.jobTargetId = best.id; }
+      if (best) {
+        commands.submit({
+          type: 'order', playerId: owner, unitIds: [a.id],
+          target: { kind: 'entity', id: best.id },
+        });
+        shadow.set(best.id, shadow.get(best.id) + 1);
+      }
     }
   }
 
   // 5. Wave attack.
   if (ai.waveTimer <= 0 && army.length >= config.ai.armyThreshold) {
-    const myTH = myBuildings.find(b => b.kind === 'townHall');
-    const fromX = myTH ? (myTH.tileX + 1) * config.tile : 5 * config.tile;
-    const fromY = myTH ? (myTH.tileY + 1) * config.tile : 10 * config.tile;
+    const fromX = townHall ? (townHall.tileX + 1) * config.tile : 5 * config.tile;
+    const fromY = townHall ? (townHall.tileY + 1) * config.tile : 10 * config.tile;
     const target = entities.nearestOf(
       e => e.type === 'building' && e.owner === enemy,
       fromX, fromY,
     );
     if (target) {
-      for (const u of army) { u.job = 'attack'; u.jobTargetId = target.id; }
+      commands.submit({
+        type: 'order', playerId: owner,
+        unitIds: army.map(u => u.id),
+        target: { kind: 'entity', id: target.id },
+      });
       ai.waveTimer = config.ai.waveCooldown;
     }
   }

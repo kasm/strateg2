@@ -2,7 +2,7 @@
 
 import { drawBuilding, drawUnit, drawUnitStack, drawUnitSpread } from './sprites.js';
 
-export function drawScene(ctx, { state, config, map, getDragRect }) {
+export function drawScene(ctx, { state, client, config, map, getDragRect, selectedIdSet }) {
   const tile = config.tile;
 
   ctx.clearRect(0, 0, map.w * tile, map.h * tile);
@@ -32,13 +32,13 @@ export function drawScene(ctx, { state, config, map, getDragRect }) {
 
   // Buildings (under units)
   for (const e of state.entities) {
-    if (e.type === 'building' && e.hp > 0) drawBuilding(ctx, e, config, state);
+    if (e.type === 'building' && e.hp > 0) drawBuilding(ctx, e, config, selectedIdSet);
   }
   // Units — render mode selects how stacks (same owner/kind on same tile) are displayed.
-  const mode = state.stackMode || 'spread';
+  const mode = client.stackMode || 'spread';
   if (mode === 'overlap') {
     for (const e of state.entities) {
-      if (e.type === 'unit' && e.hp > 0 && e.insideBuildingId == null) drawUnit(ctx, e, config, state);
+      if (e.type === 'unit' && e.hp > 0 && e.insideBuildingId == null) drawUnit(ctx, e, config, selectedIdSet);
     }
   } else {
     const groups = new Map();
@@ -51,21 +51,21 @@ export function drawScene(ctx, { state, config, map, getDragRect }) {
       g.push(e);
     }
     const draw = mode === 'badge' ? drawUnitStack : drawUnitSpread;
-    for (const g of groups.values()) draw(ctx, g, config, state);
+    for (const g of groups.values()) draw(ctx, g, config, selectedIdSet);
   }
   // Projectiles
   ctx.fillStyle = config.colors.arrow;
   for (const p of state.projectiles) ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
 
   // Build-mode ghost
-  if (state.buildMode && state.hoverTile) {
-    const def = config.building[state.buildMode.kind];
-    const ok = map.canPlaceBuilding(state.buildMode.kind, state.hoverTile.x, state.hoverTile.y) &&
+  if (client.buildMode && client.hoverTile) {
+    const def = config.building[client.buildMode.kind];
+    const ok = map.canPlaceBuilding(client.buildMode.kind, client.hoverTile.x, client.hoverTile.y) &&
                state.players.red.gold >= def.cost.gold &&
                state.players.red.wood >= def.cost.wood;
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = ok ? '#4caf50' : '#d83b3b';
-    ctx.fillRect(state.hoverTile.x * tile, state.hoverTile.y * tile, def.w * tile, def.h * tile);
+    ctx.fillRect(client.hoverTile.x * tile, client.hoverTile.y * tile, def.w * tile, def.h * tile);
     ctx.globalAlpha = 1;
   }
 

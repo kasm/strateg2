@@ -2,6 +2,7 @@
 
 import { drawScene } from './scene.js';
 import { updateHUD } from './hud.js';
+import { resolveSelected } from '../../client/client-state.js';
 
 /**
  * @typedef {Object} RenderModule
@@ -12,6 +13,7 @@ import { updateHUD } from './hud.js';
 /**
  * @param {{
  *   state:    import('../../core/game-state.js').GameState,
+ *   client:   import('../../client/client-state.js').ClientState,
  *   config:   import('../../core/config.js').GameConfig,
  *   map:      import('../map/index.js').MapModule,
  *   entities: import('../entities/index.js').EntitiesModule,
@@ -19,7 +21,7 @@ import { updateHUD } from './hud.js';
  * }} deps
  * @returns {RenderModule}
  */
-export function createRender({ state, config, map, entities, getDragRect }) {
+export function createRender({ state, client, config, map, entities, getDragRect }) {
   let ctx = null;
   return {
     initRender() {
@@ -28,8 +30,12 @@ export function createRender({ state, config, map, entities, getDragRect }) {
     },
     draw() {
       if (!ctx) return;
-      drawScene(ctx, { state, config, map, getDragRect });
-      updateHUD(state, config, entities);
+      // Prune dead/missing entities from the selection once per frame; passes the live
+      // entity set + a Set<id> for fast contains-checks into scene/sprites.
+      const selectedLive = resolveSelected(client, entities);
+      const selectedIdSet = new Set(client.selectedIds);
+      drawScene(ctx, { state, client, config, map, getDragRect, selectedIdSet });
+      updateHUD(state, client, config, entities, selectedLive);
     },
   };
 }

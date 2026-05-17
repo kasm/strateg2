@@ -7,7 +7,7 @@ import {
 } from './commands.js';
 
 export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
-  const { state, map } = deps;
+  const { client, map } = deps;
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -15,7 +15,7 @@ export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     if (e.button === 0) {
-      if (state.buildMode) {
+      if (client.buildMode) {
         const tile = map.worldToTile(x, y);
         submitBuild(tile.x, tile.y, deps);
         return;
@@ -31,7 +31,7 @@ export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     mouse.x = x; mouse.y = y;
-    state.hoverTile = map.worldToTile(x, y);
+    client.hoverTile = map.worldToTile(x, y);
     if (mouse.dragStart) {
       const ds = mouse.dragStart;
       mouse.dragRect = {
@@ -54,9 +54,9 @@ export function bindMouse(canvas, mouse, deps, refreshTrainMenu) {
 }
 
 function handleRightClick(x, y, deps) {
-  const { state, map, entities } = deps;
-  if (state.buildMode) { state.buildMode = null; return; }
-  if (state.selected.length === 0) return;
+  const { client, map, entities } = deps;
+  if (client.buildMode) { client.buildMode = null; return; }
+  if (client.selectedIds.length === 0) return;
   const tgt  = entities.findEntityAt(x, y);
   const tile = map.worldToTile(x, y);
   submitOrderForSelected(tgt, tile, deps);
