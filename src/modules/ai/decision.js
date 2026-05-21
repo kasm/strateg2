@@ -174,10 +174,10 @@ function hintFor(kind, owner) {
     }
   }
   switch (kind) {
-    case 'arrowBuilding': return [52, 11];
-    case 'barracks':      return [52, 8];
-    case 'archeryRange':  return [54, 12];
-    case 'tower':         return [48, 9];
-    default:              return [52, 8];
+    case 'arrowBuilding': return [34, 11];
+    case 'barracks':      return [34, 8];
+    case 'archeryRange':  return [36, 12];
+    case 'tower':         return [30, 9];
+    default:              return [34, 8];
   }
 }

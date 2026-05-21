@@ -70,12 +70,12 @@ export function createEntities({ state, config, map, pathfinding }) {
     state.players.blue.wood = config.startResources.wood;
 
     makeBuilding('goldMine', 'neutral', 4, 9);
-    makeBuilding('goldMine', 'neutral', 54, 9);
+    makeBuilding('goldMine', 'neutral', 36, 9);
     makeBuilding('townHall', 'red', 1, 8);
-    makeBuilding('townHall', 'blue', 56, 8);
+    makeBuilding('townHall', 'blue', 38, 8);
     for (let i = 0; i < 3; i++) {
       makeUnit('peasant', 'red', 5 + i, 11);
-      makeUnit('peasant', 'blue', 54 - i, 11);
+      makeUnit('peasant', 'blue', 36 - i, 11);
     }
   }
 
