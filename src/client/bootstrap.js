@@ -29,7 +29,8 @@ export function startClient() {
   const explicitOff = params.get('multiplayer') === '0';
   const explicitOn  = params.has('multiplayer') && !explicitOff;
   const isMP        = !explicitOff && (explicitOn || !!window.__STRATEG2_SERVER__);
-  const wsUrl       = params.get('server') || `ws://${location.host}/ws`;
+  const wsScheme    = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl       = params.get('server') || `${wsScheme}//${location.host}/ws`;
 
   const sim    = createSimWorld(CONFIG);
   const client = createClientState();
