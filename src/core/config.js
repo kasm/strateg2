@@ -40,7 +40,7 @@
 /** @type {GameConfig} */
 export const CONFIG = {
   tile: 32,
-  mapW: 42,
+  mapW: 36,
   mapH: 20,
 
   colors: {

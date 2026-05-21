@@ -1,23 +1,21 @@
 // ORCHESTRATOR: Node multiplayer server.
 // Hosts the static client files AND a WebSocket endpoint on the same port.
 // Lockstep model: server runs a full sim, but its sole authority output is a
-// per-tick broadcast of every player's + AI's commands. Each connected client
-// runs an identical deterministic sim and steps from the same broadcast stream.
+// per-tick broadcast of every player's commands. Each connected client runs an
+// identical deterministic sim and steps from the same broadcast stream.
 //
-// Crossroads of the server:
-//   - createSimWorld(CONFIG) + spawnInitial(sim)  — same headless API the client uses
-//   - lobby                                       — slot assignment (red/blue)
-//   - relay                                       — per-player seq + tick batching
-//   - sim.commands.submit() WRAPPED               — AI cmds route into the relay,
-//                                                   never directly into the sim queue
+// Lifecycle (per match):
+//   - Lobby phase: clients connect, pick names, see each other's roster, send
+//     and accept invites. The sim object exists but is dormant — no entities,
+//     no ticks broadcast.
+//   - On accept: lobby.startMatch pairs inviter=red + invitee=blue; sim is
+//     freshly spawned via spawnInitial; relay/serverTick reset; tick loop
+//     starts broadcasting `tick-commands` and stepping the sim.
+//   - Match end (gameOver or disconnect): the pair gets a `match-ended` msg,
+//     lobby returns to vacant, sim sits idle until the next match starts.
 //
-// On each tick:
-//   1. broadcast tick-commands batch from the PREVIOUS tick's AI + this tick's
-//      client cmds (collected by the relay).
-//   2. Submit the broadcast batch into the sim's dispatcher (origSubmit).
-//   3. stepTick(sim) — drains the batch, advances world, AI for empty slots fires
-//      its own submits which our wrapper redirects into the relay (queued for
-//      the NEXT broadcast).
+// Capacity rule: while a match is active, new WS connections are refused with
+// `{type:'full'}` — no spectators, no queueing on top of the active pair.
 
 import http from 'node:http';
 import path from 'node:path';
@@ -38,17 +36,15 @@ const sim   = createSimWorld(CONFIG);
 const lobby = createLobby();
 const relay = createRelay();
 
-// Bring the world up to its initial state immediately so client joins land on a
-// populated, deterministic sim. AI's autoFight is initialized to true for both
-// slots; flips off per-slot as humans connect.
-spawnInitial(sim);
-sim.state.autoFight.red  = true;
-sim.state.autoFight.blue = true;
+// Sim stays dormant until two players agree on a match. autoFight is unused
+// (no AI players in this mode), but kept false so any stray AI tick in the sim
+// modules doesn't try to emit commands.
+sim.state.autoFight.red  = false;
+sim.state.autoFight.blue = false;
 
-// Wrap commands.submit so AI cmds (unstamped) flow into the relay buffer for
-// broadcast on the next tick, instead of into the sim's local queue. Already
-// stamped commands (the broadcast batch we re-inject in the tick loop) pass
-// through to the original submit untouched.
+// Wrap commands.submit defensively. In this lobby-gated flow only human-stamped
+// cmds reach the relay (AI is off), but we keep the wrap so future changes that
+// re-enable AI route its commands through the relay rather than the local queue.
 const origSubmit = sim.commands.submit;
 sim.commands.submit = (cmd) => {
   if (cmd.seq == null) {
@@ -67,6 +63,12 @@ const wss           = new WebSocketServer({ server: httpServer, path: '/ws' });
 
 const conns = new Set();
 
+function send(conn, message) {
+  if (conn && conn.readyState === 1 /* OPEN */) {
+    conn.send(JSON.stringify(message));
+  }
+}
+
 function broadcast(message) {
   const payload = JSON.stringify(message);
   for (const conn of conns) {
@@ -74,57 +76,142 @@ function broadcast(message) {
   }
 }
 
-function syncAutoFightFromLobby() {
-  const flags = lobby.autoFightFlags();
-  sim.state.autoFight.red  = flags.red;
-  sim.state.autoFight.blue = flags.blue;
+function broadcastRoster() {
+  broadcast({ type: 'players', list: lobby.roster() });
+}
+
+function beginMatch() {
+  // Fresh sim each match. The sim object is reused (so the dispatcher wrap
+  // stays intact), state is reset in place by spawnInitial.
+  spawnInitial(sim);
+  relay.reset();
+  serverTick = 0;
+  const red  = lobby.matchConn('red');
+  const blue = lobby.matchConn('blue');
+  send(red,  { type: 'hello', playerId: 'red',  initialAutoFight: { red: false, blue: false } });
+  send(blue, { type: 'hello', playerId: 'blue', initialAutoFight: { red: false, blue: false } });
+}
+
+function finishMatch(reason, winner) {
+  const pair = lobby.endMatch();
+  if (pair) {
+    send(pair.red,  { type: 'match-ended', reason, winner });
+    send(pair.blue, { type: 'match-ended', reason, winner });
+  }
+  // Drain any residual relay state and reset tick counter for the next match.
+  relay.reset();
+  serverTick = 0;
+  broadcastRoster();
 }
 
 wss.on('connection', (conn) => {
-  const playerId = lobby.assignSlot(conn);
-  if (!playerId) {
-    conn.send(JSON.stringify({ type: 'full' }));
+  // Capacity gate: no spectators while a match is active.
+  if (lobby.isMatchFull()) {
+    send(conn, { type: 'full' });
     conn.close();
     return;
   }
+  const connId = lobby.addConn(conn);
   conns.add(conn);
-  syncAutoFightFromLobby();
-
-  conn.send(JSON.stringify({
-    type: 'hello',
-    playerId,
-    initialAutoFight: lobby.autoFightFlags(),
-  }));
+  send(conn, { type: 'lobby-hello', connId });
+  broadcastRoster();
 
   conn.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
-    if (msg.type !== 'cmd' || !msg.cmd) return;
-    const cmd = msg.cmd;
-    if (cmd.playerId !== playerId) return;  // spoof guard
-    cmd.seq = relay.stampSeq(cmd.playerId);
-    relay.enqueue(cmd);
+    switch (msg && msg.type) {
+      case 'set-name': {
+        const res = lobby.setName(conn, msg.name);
+        if (!res.ok) {
+          send(conn, { type: 'name-rejected', reason: res.reason });
+        } else {
+          send(conn, { type: 'name-accepted', name: lobby.nameOf(conn) });
+          broadcastRoster();
+        }
+        return;
+      }
+      case 'invite': {
+        if (lobby.isInMatch()) return;
+        if (lobby.matchSlotFor(conn) !== null) return;
+        const target = lobby.connById(msg.toConnId);
+        if (!target || target === conn) return;
+        if (lobby.matchSlotFor(target) !== null) return;
+        const fromConnId = lobby.connIdOf(conn);
+        const fromName   = lobby.nameOf(conn);
+        if (!fromName) return; // inviter must have a name
+        send(target, { type: 'invited', fromConnId, fromName });
+        return;
+      }
+      case 'accept-invite': {
+        if (lobby.isInMatch()) return;
+        const inviter = lobby.connById(msg.fromConnId);
+        if (!inviter || inviter === conn) return;
+        if (!lobby.nameOf(inviter) || !lobby.nameOf(conn)) return;
+        const pair = lobby.startMatch(inviter, conn);
+        if (!pair) {
+          send(conn, { type: 'invite-failed', reason: 'unavailable' });
+          return;
+        }
+        beginMatch();
+        broadcastRoster();
+        return;
+      }
+      case 'decline-invite': {
+        const inviter = lobby.connById(msg.fromConnId);
+        if (!inviter) return;
+        const byConnId = lobby.connIdOf(conn);
+        send(inviter, { type: 'invite-declined', byConnId });
+        return;
+      }
+      case 'cmd': {
+        if (!msg.cmd) return;
+        const slot = lobby.matchSlotFor(conn);
+        if (!slot || !lobby.isInMatch()) return;       // not in a match: ignore
+        if (msg.cmd.playerId !== slot) return;          // spoof guard
+        msg.cmd.seq = relay.stampSeq(msg.cmd.playerId);
+        relay.enqueue(msg.cmd);
+        return;
+      }
+      default:
+        return;
+    }
   });
 
   conn.on('close', () => {
+    // Snapshot the leaver's slot BEFORE removeConn clears the pairing, so we
+    // can tell the survivor who won.
+    const leaverSlot = lobby.matchSlotFor(conn);
     conns.delete(conn);
-    lobby.releaseSlot(conn);
-    syncAutoFightFromLobby();
+    const res = lobby.removeConn(conn);
+    if (res.wasInMatch && res.opponentConn) {
+      const winner = leaverSlot === 'red' ? 'blue' : 'red';
+      send(res.opponentConn, { type: 'match-ended', reason: 'opponent-disconnected', winner });
+      relay.reset();
+      serverTick = 0;
+    }
+    broadcastRoster();
   });
 });
 
 setInterval(() => {
+  if (!lobby.isInMatch()) return;
+
   // 1. Collect everything that accumulated since the last tick (client cmds
-  //    received async + AI cmds emitted during the previous stepTick).
+  //    received async + any future AI cmds that route through the relay wrap).
   const batch = relay.collectTick(serverTick);
 
-  // 2. Broadcast to all peers. Empty batches are still useful as a heartbeat /
-  //    tick-advance signal so clients keep their state.tick in lockstep.
+  // 2. Broadcast to both peers. Empty batches still drive tick-advance.
   broadcast({ type: 'tick-commands', tick: serverTick, commands: batch });
 
   // 3. Apply the batch on the server's own sim, then advance.
   for (const cmd of batch) submitCommand(sim, cmd);
   stepTick(sim, TICK_DT);
+
+  // 4. Match-end on victory.
+  if (sim.state.gameOver) {
+    finishMatch('gameOver', sim.state.gameOver);
+    return;
+  }
 
   serverTick += 1;
 }, TICK_DT * 1000);

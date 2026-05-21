@@ -78,3 +78,85 @@ button.active { background: #886a2a; }
   z-index: 10;
 }
 #game-over-text { margin-bottom: 12px; }
+
+#lobby-players-panel {
+  padding: 8px;
+  background: #222;
+  border: 1px solid #444;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lobby-section-title {
+  color: #ffd66e;
+  font-weight: 600;
+}
+#lobby-self {
+  color: #9cd;
+  font-size: 11px;
+}
+#lobby-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#lobby-players li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+}
+#lobby-players li .name { flex: 1; }
+#lobby-players li button {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+#lobby-status-msg {
+  color: #999;
+  font-size: 11px;
+  min-height: 14px;
+}
+
+#lobby-name-modal, #lobby-invite-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 24px 28px;
+  background: #222;
+  border: 2px solid #ffd66e;
+  text-align: center;
+  font-size: 14px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+}
+.lobby-modal-title {
+  font-size: 15px;
+  color: #ffd66e;
+}
+.lobby-modal-error {
+  color: #ff7575;
+  font-size: 11px;
+  min-height: 14px;
+}
+.lobby-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+#lobby-name-input {
+  background: #1a1a1a;
+  color: #eee;
+  border: 1px solid #555;
+  padding: 6px 8px;
+  font-size: 14px;
+  text-align: center;
+}

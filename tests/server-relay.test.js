@@ -6,40 +6,86 @@ import { createLobby } from '../src/server/lobby.js';
 import { createRelay } from '../src/server/relay.js';
 
 describe('createLobby', () => {
-  it('assigns red, then blue, then refuses overflow', () => {
+  it('addConn returns a fresh connId per conn and is idempotent for the same conn', () => {
+    const lobby = createLobby();
+    const a = {}, b = {};
+    const idA = lobby.addConn(a);
+    const idB = lobby.addConn(b);
+    expect(idA).not.toBe(idB);
+    expect(typeof idA).toBe('string');
+    expect(lobby.addConn(a)).toBe(idA);
+    expect(lobby.connIdOf(a)).toBe(idA);
+    expect(lobby.connById(idA)).toBe(a);
+  });
+
+  it('setName trims, rejects empty / duplicate (case-insensitive) / overlong', () => {
+    const lobby = createLobby();
+    const a = {}, b = {};
+    lobby.addConn(a); lobby.addConn(b);
+    expect(lobby.setName(a, '  ')).toEqual({ ok: false, reason: 'empty' });
+    expect(lobby.setName(a, '  Alice  ')).toEqual({ ok: true });
+    expect(lobby.nameOf(a)).toBe('Alice');
+    expect(lobby.setName(b, 'alice')).toEqual({ ok: false, reason: 'duplicate' });
+    expect(lobby.setName(b, 'B'.repeat(25))).toEqual({ ok: false, reason: 'too-long' });
+    expect(lobby.setName(b, 'Bob')).toEqual({ ok: true });
+  });
+
+  it('roster excludes unnamed conns and in-match conns', () => {
     const lobby = createLobby();
     const a = {}, b = {}, c = {};
-    expect(lobby.assignSlot(a)).toBe('red');
-    expect(lobby.assignSlot(b)).toBe('blue');
-    expect(lobby.assignSlot(c)).toBe(null);
+    lobby.addConn(a); lobby.addConn(b); lobby.addConn(c);
+    lobby.setName(a, 'Alice');
+    lobby.setName(b, 'Bob');
+    // c is unnamed -> excluded
+    expect(lobby.roster().map(r => r.name).sort()).toEqual(['Alice', 'Bob']);
+    lobby.startMatch(a, b);
+    expect(lobby.roster()).toEqual([]);
+    lobby.setName(c, 'Carol');
+    expect(lobby.roster().map(r => r.name)).toEqual(['Carol']);
   });
 
-  it('reports autoFight=true for empty slots, false for occupied', () => {
+  it('startMatch assigns inviter=red, invitee=blue; refuses when busy or self-invite', () => {
     const lobby = createLobby();
-    expect(lobby.autoFightFlags()).toEqual({ red: true, blue: true });
-    const a = {};
-    lobby.assignSlot(a);
-    expect(lobby.autoFightFlags()).toEqual({ red: false, blue: true });
-    const b = {};
-    lobby.assignSlot(b);
-    expect(lobby.autoFightFlags()).toEqual({ red: false, blue: false });
+    const a = {}, b = {}, c = {};
+    lobby.addConn(a); lobby.addConn(b); lobby.addConn(c);
+    expect(lobby.startMatch(a, a)).toBe(null);
+    const pair = lobby.startMatch(a, b);
+    expect(pair).toEqual({ red: a, blue: b });
+    expect(lobby.isInMatch()).toBe(true);
+    expect(lobby.isMatchFull()).toBe(true);
+    expect(lobby.matchSlotFor(a)).toBe('red');
+    expect(lobby.matchSlotFor(b)).toBe('blue');
+    expect(lobby.matchConn('red')).toBe(a);
+    expect(lobby.startMatch(a, c)).toBe(null);
+    expect(lobby.startMatch(c, b)).toBe(null);
   });
 
-  it('releaseSlot frees the slot and flips autoFight back on', () => {
+  it('endMatch clears the pairing and frees the lobby', () => {
     const lobby = createLobby();
-    const a = {};
-    lobby.assignSlot(a);
-    expect(lobby.autoFightFlags().red).toBe(false);
-    expect(lobby.releaseSlot(a)).toBe('red');
-    expect(lobby.autoFightFlags().red).toBe(true);
+    const a = {}, b = {};
+    lobby.addConn(a); lobby.addConn(b);
+    lobby.startMatch(a, b);
+    const pair = lobby.endMatch();
+    expect(pair).toEqual({ red: a, blue: b });
+    expect(lobby.isInMatch()).toBe(false);
+    expect(lobby.matchSlotFor(a)).toBe(null);
+    expect(lobby.endMatch()).toBe(null);
   });
 
-  it('humanSlots / aiSlots partition correctly', () => {
+  it('removeConn reports wasInMatch + opponent for an in-match conn', () => {
     const lobby = createLobby();
-    const a = {};
-    lobby.assignSlot(a);
-    expect(lobby.humanSlots()).toEqual(['red']);
-    expect(lobby.aiSlots()).toEqual(['blue']);
+    const a = {}, b = {}, c = {};
+    lobby.addConn(a); lobby.addConn(b); lobby.addConn(c);
+    lobby.startMatch(a, b);
+    const res = lobby.removeConn(b);
+    expect(res.wasInMatch).toBe(true);
+    expect(res.opponentConn).toBe(a);
+    expect(res.freedConnId).toBeTruthy();
+    expect(lobby.isInMatch()).toBe(false);
+    // out-of-match removal:
+    const res2 = lobby.removeConn(c);
+    expect(res2.wasInMatch).toBe(false);
+    expect(res2.opponentConn).toBe(null);
   });
 });
 

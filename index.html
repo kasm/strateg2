@@ -7,7 +7,7 @@
 </head>
 <body>
   <div id="game">
-    <canvas id="canvas" width="1344" height="640"></canvas>
+    <canvas id="canvas" width="1152" height="640"></canvas>
     <div id="hud">
       <div id="resources">
         <span>Gold: <b id="gold">0</b></span>
@@ -27,6 +27,12 @@
         <button data-train="peasant">Peasant (50g)</button>
         <button data-train="swordsman">Swordsman (80g)</button>
         <button data-train="archer">Archer (70g)</button>
+      </div>
+      <div id="lobby-players-panel" style="display:none">
+        <div class="lobby-section-title">Players online</div>
+        <div id="lobby-self"></div>
+        <ul id="lobby-players"></ul>
+        <div id="lobby-status-msg"></div>
       </div>
       <div id="options">
         <label><input type="checkbox" id="auto-fight" /> Auto-fight (red AI)</label>
@@ -53,6 +59,19 @@
     <div id="game-over" style="display:none">
       <div id="game-over-text"></div>
       <button id="restart">Restart</button>
+    </div>
+    <div id="lobby-name-modal" style="display:none">
+      <div class="lobby-modal-title">Enter your name</div>
+      <input id="lobby-name-input" type="text" maxlength="24" placeholder="Your name" />
+      <div id="lobby-name-error" class="lobby-modal-error"></div>
+      <button id="lobby-name-submit">Join lobby</button>
+    </div>
+    <div id="lobby-invite-modal" style="display:none">
+      <div id="lobby-invite-text" class="lobby-modal-title"></div>
+      <div class="lobby-modal-actions">
+        <button id="lobby-invite-accept">Accept</button>
+        <button id="lobby-invite-decline">Decline</button>
+      </div>
     </div>
   </div>
 

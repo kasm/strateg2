@@ -58,6 +58,33 @@ export function createStaticHandler(root) {
       }
       const ext = path.extname(abs).toLowerCase();
       const type = MIME[ext] || 'application/octet-stream';
+
+      // index.html gets a marker so the client knows it's running under the
+      // Node server (vs. a bare static `npx serve .`). That toggles MP-by-default
+      // in bootstrap.js without needing a `?multiplayer=1` query param.
+      if (path.basename(abs).toLowerCase() === 'index.html') {
+        fs.readFile(abs, 'utf8', (readErr, html) => {
+          if (readErr) {
+            res.writeHead(500, { 'content-type': 'text/plain' });
+            res.end('Read error');
+            return;
+          }
+          const marker = '<script>window.__STRATEG2_SERVER__=true;</script>';
+          const injected = html.includes('</head>')
+            ? html.replace('</head>', `  ${marker}\n</head>`)
+            : marker + html;
+          const buf = Buffer.from(injected, 'utf8');
+          res.writeHead(200, {
+            'content-type':   type,
+            'content-length': buf.length,
+            'cache-control':  'no-store',
+          });
+          if (req.method === 'HEAD') { res.end(); return; }
+          res.end(buf);
+        });
+        return;
+      }
+
       res.writeHead(200, {
         'content-type':   type,
         'content-length': stat.size,
