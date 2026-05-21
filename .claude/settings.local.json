@@ -17,7 +17,29 @@
       "Bash(node --check src/sim/index.js)",
       "Bash(node --check src/core/world.js)",
       "Bash(node --check src/modules/ai/decision.js)",
-      "Bash(node --input-type=module -e ' *)"
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(node .claude/scripts/*.mjs:*)",
+      "Bash(npm run analyze:*)",
+      "Bash(npm run analyze)",
+      "Bash(npm install:*)",
+      "Bash(npm install)",
+      "Bash(node .claude/scripts/structure.mjs)",
+      "Bash(node .claude/scripts/deps.mjs)",
+      "Bash(node .claude/scripts/graph.mjs src)",
+      "Bash(node .claude/scripts/symbols.mjs src/modules/pathfinding)",
+      "Bash(node .claude/scripts/routes.mjs)",
+      "Bash(node .claude/scripts/client-server.mjs src)",
+      "Bash(node .claude/scripts/events.mjs src)",
+      "Bash(node .claude/scripts/assets.mjs)",
+      "Bash(node .claude/scripts/complexity.mjs --top 10)",
+      "Bash(node .claude/scripts/todos.mjs)",
+      "Bash(node .claude/scripts/git-activity.mjs --limit 30)",
+      "Bash(node .claude/scripts/refs.mjs aStarSearch)",
+      "Bash(node .claude/scripts/context.mjs)",
+      "Bash(node .claude/scripts/context.mjs src/modules/pathfinding)",
+      "Bash(git stash *)",
+      "Bash(node .claude/NO_AI_an2file.js)",
+      "Bash(node .claude/NO_AI_an2file.js --stdout)"
     ]
   }
 }
