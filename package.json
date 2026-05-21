@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node src/server/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "serve": "npx --yes serve .",
@@ -12,9 +13,11 @@
     "analyze:graph": "node .claude/scripts/graph.mjs",
     "analyze:deps": "node .claude/scripts/deps.mjs"
   },
+  "dependencies": {
+    "ws": "^8.20.1"
+  },
   "devDependencies": {
     "acorn": "^8.14.0",
-    "vitest": "^2.1.8",
-    "ws": "^8.20.1"
+    "vitest": "^2.1.8"
   }
 }
