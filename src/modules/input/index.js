@@ -48,7 +48,7 @@ export function createInput({ state, client, config, map, entities, units, pathf
     client.trainFromId = null;
     if (client.selectedIds.length === 1) {
       const s = entities.byId(client.selectedIds[0]);
-      if (s && s.type === 'building' && s.owner === 'red' && config.building[s.kind].trains.length) {
+      if (s && s.type === 'building' && s.owner === client.playerId && config.building[s.kind].trains.length) {
         client.trainFromId = s.id;
         const allowed = new Set(config.building[s.kind].trains);
         document.querySelectorAll('#train-menu button').forEach(btn => {
@@ -68,7 +68,7 @@ export function createInput({ state, client, config, map, entities, units, pathf
     const btn = document.getElementById('eject-button');
     if (!btn) return;
     const s = client.selectedIds.length === 1 ? entities.byId(client.selectedIds[0]) : null;
-    const show = s && s.type === 'building' && s.kind === 'tower' && s.owner === 'red' && s.garrisonIds && s.garrisonIds.length > 0;
+    const show = s && s.type === 'building' && s.kind === 'tower' && s.owner === client.playerId && s.garrisonIds && s.garrisonIds.length > 0;
     btn.style.display = show ? '' : 'none';
   }
 
@@ -91,7 +91,7 @@ export function createInput({ state, client, config, map, entities, units, pathf
         const b = client.trainFromId != null ? entities.byId(client.trainFromId) : null;
         if (!b || b.hp <= 0) return;
         transport.submit({
-          type: 'train', playerId: 'red',
+          type: 'train', playerId: client.playerId,
           buildingId: b.id, unitKind: kind,
         });
       });
@@ -105,8 +105,8 @@ export function createInput({ state, client, config, map, entities, units, pathf
 
     const autoFightEl = document.getElementById('auto-fight');
     if (autoFightEl) {
-      autoFightEl.checked = state.autoFight.red;
-      autoFightEl.addEventListener('change', () => { state.autoFight.red = autoFightEl.checked; });
+      autoFightEl.checked = state.autoFight[client.playerId];
+      autoFightEl.addEventListener('change', () => { state.autoFight[client.playerId] = autoFightEl.checked; });
     }
 
     const stackModeEl = document.getElementById('stack-mode');
@@ -129,8 +129,8 @@ export function createInput({ state, client, config, map, entities, units, pathf
     if (ejectBtn) {
       ejectBtn.addEventListener('click', () => {
         const s = client.selectedIds.length === 1 ? entities.byId(client.selectedIds[0]) : null;
-        if (!s || s.type !== 'building' || s.kind !== 'tower' || s.owner !== 'red') return;
-        transport.submit({ type: 'eject', playerId: 'red', buildingId: s.id });
+        if (!s || s.type !== 'building' || s.kind !== 'tower' || s.owner !== client.playerId) return;
+        transport.submit({ type: 'eject', playerId: client.playerId, buildingId: s.id });
         // Refresh on next animation frame so the post-drain garrison count is reflected.
         requestAnimationFrame(refreshEjectButton);
       });

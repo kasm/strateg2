@@ -17,10 +17,11 @@ import { validateOrder, applyOrder } from './order.js';
 import { validateBuild, applyBuild } from './build.js';
 import { validateTrain, applyTrain } from './train.js';
 import { validateEject, applyEject } from './eject.js';
+import { validateRestart, applyRestart } from './restart.js';
 
 /**
  * @typedef {Object} Command
- * @property {'order'|'build'|'train'|'eject'} type
+ * @property {'order'|'build'|'train'|'eject'|'restart'} type
  * @property {string} playerId    - 'red' | 'blue' (or future bot id)
  * @property {number} [tick]      - filled by submit() if absent; tick the cmd applies at
  * @property {number} [seq]       - filled by submit() if absent; monotonic per-player counter
@@ -28,6 +29,7 @@ import { validateEject, applyEject } from './eject.js';
  * @typedef {Object} CommandsModule
  * @property {(cmd:Command) => void} submit
  *   Append a command. The dispatcher fills in `seq` and `tick` if not set.
+ *   Pre-stamped commands (from the network) are preserved verbatim.
  * @property {() => void} drain
  *   Sort the pending queue by (playerId, seq), then for each cmd run validate -> apply.
  *   Called once at the start of every tick.
@@ -35,10 +37,11 @@ import { validateEject, applyEject } from './eject.js';
  */
 
 const DEFS = {
-  order: { validate: validateOrder, apply: applyOrder },
-  build: { validate: validateBuild, apply: applyBuild },
-  train: { validate: validateTrain, apply: applyTrain },
-  eject: { validate: validateEject, apply: applyEject },
+  order:   { validate: validateOrder,   apply: applyOrder   },
+  build:   { validate: validateBuild,   apply: applyBuild   },
+  train:   { validate: validateTrain,   apply: applyTrain   },
+  eject:   { validate: validateEject,   apply: applyEject   },
+  restart: { validate: validateRestart, apply: applyRestart },
 };
 
 /**

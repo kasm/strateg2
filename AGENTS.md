@@ -56,6 +56,14 @@ Tests wire dependencies manually with DI — see `tests/combat.test.js` for the 
 - **`entitiesById` synchronization.** Only `entities.makeUnit/makeBuilding` add to it; only `entities.pruneDead` removes from it. Don't mutate `state.entities` from elsewhere.
 - **`sim/index.js` re-export surface.** Other code (and future server bootstrap) imports through this barrel. Adding here is fine; removing/renaming breaks consumers.
 
+## Multiplayer (server) module
+
+- `src/server/` is **Node-only**. Nothing under `src/core/`, `src/sim/`, `src/commands/`, `src/transport/`, or `src/modules/` may import from it.
+- `src/transport/net.js` (`createNetTransport`) is the network adapter. It preserves the `Transport` shape from `transport/local.js` verbatim (`submit / onSnapshot / onCommandsForTick`); the bootstrap branches on which factory it instantiates and never further on mode.
+- Lockstep model: server hosts the canonical tick clock, AI for empty slots, and the broadcast batch. Every peer (server's own sim + each client) advances deterministically from the same broadcast stream.
+- In MP, `state.autoFight.red` and `state.autoFight.blue` are both `false` on the client so the client sim's AI never runs. AI emission lives only on the server.
+- The dispatcher's `if (cmd.seq == null)` guard at the top of `commands.submit()` is load-bearing: it lets server-stamped commands flow through untouched on the client.
+
 ## Suspicious / known-broken
 
 - `tests/smoke-world.test.js` expects `createWorld` to return keys `['ai','combat','config','entities','input','map','pathfinding','render','state','units']` — but `core/world.js` does not wire `input` or `render` (they live in `client/bootstrap.js`). The first assertion in that file will fail. **Do not silently "fix" either side** — surface this to the user and let them decide whether the test or the contract is canonical.

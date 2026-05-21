@@ -7,6 +7,7 @@
 
 /**
  * @typedef {Object} ClientState
+ * @property {'red'|'blue'} playerId           - which side the local player controls. Set by the transport on connect in MP; defaults to 'red' for SP.
  * @property {number[]} selectedIds            - selected entity IDs (alive-only is enforced at read sites).
  * @property {{kind:string}|null} buildMode    - non-null while placing a building.
  * @property {number|null} trainFromId         - building ID whose train menu is open.
@@ -17,6 +18,7 @@
 /** @returns {ClientState} */
 export function createClientState() {
   return {
+    playerId: 'red',
     selectedIds: [],
     buildMode: null,
     trainFromId: null,

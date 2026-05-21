@@ -15,8 +15,12 @@ export const TICK_DT = 1 / 30;
  * @param {number} dt
  */
 export function tick(w, dt) {
-  if (w.state.gameOver) return;
+  // Drain commands first — even on a gameOver tick — so a 'restart' command can
+  // revive the world. spawnInitial resets state.gameOver to null; the rest of the
+  // tick then proceeds against the fresh state. Stale orders from before the
+  // restart auto-fail their validate() (entities no longer exist) and are dropped.
   w.commands.drain();
+  if (w.state.gameOver) return;
   w.state.tick += 1;
   w.ai.updateAI(dt);
   w.units.updateUnits(dt);
