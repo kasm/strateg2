@@ -3,6 +3,7 @@ import { CONFIG } from '../src/core/config.js';
 import { createGameState } from '../src/core/game-state.js';
 import { createMap } from '../src/modules/map/index.js';
 import { createEntities } from '../src/modules/entities/index.js';
+import { createClientState, resolveSelected } from '../src/client/client-state.js';
 
 function wire() {
   const state = createGameState(CONFIG);
@@ -33,14 +34,15 @@ describe('entities module', () => {
   });
 
   it('killEntity clears the footprint and selection', () => {
-    const { state, map, entities } = wire();
+    const { map, entities } = wire();
     entities.spawnInitial();
     const b = entities.makeBuilding('barracks', 'red', 10, 10);
-    state.selected.push(b);
+    const client = createClientState();
+    client.selectedIds.push(b.id);
     entities.killEntity(b);
     expect(b.hp).toBe(0);
     expect(map.tileAt(10, 10).building).toBeNull();
-    expect(state.selected).not.toContain(b);
+    expect(resolveSelected(client, entities)).not.toContain(b);
   });
 
   it('pruneDead removes hp<=0 entities', () => {
