@@ -1,12 +1,14 @@
 // Internal: text HUD (resources, selection info).
 
 export function updateHUD(state, client, config, entities, selectedLive) {
-  const me = state.players.red;
+  // HUD always reflects the LOCAL player's side — 'red' in SP, but either side
+  // in MP (the server assigns client.playerId on connect).
+  const me = state.players[client.playerId];
   document.getElementById('gold').textContent = Math.floor(me.gold);
   document.getElementById('wood').textContent = Math.floor(me.wood);
-  document.getElementById('pop').textContent  = entities.unitsOf('red').length;
+  document.getElementById('pop').textContent  = entities.unitsOf(client.playerId).length;
   const arrowsTotal = document.getElementById('arrows-total');
-  if (arrowsTotal) arrowsTotal.textContent = totalRedArrows(state);
+  if (arrowsTotal) arrowsTotal.textContent = totalArrowsFor(state, client.playerId);
 
   const info = document.getElementById('selection-info');
   if (selectedLive.length === 0) {
@@ -20,10 +22,10 @@ export function updateHUD(state, client, config, entities, selectedLive) {
 
 const MAX_LINES = 12;
 
-function totalRedArrows(state) {
+function totalArrowsFor(state, owner) {
   let n = 0;
   for (const e of state.entities) {
-    if (e.hp <= 0 || e.owner !== 'red') continue;
+    if (e.hp <= 0 || e.owner !== owner) continue;
     if (e.type === 'unit' && e.kind === 'archer') n += e.arrows;
     else if (e.type === 'building' && (e.kind === 'arrowBuilding' || e.kind === 'tower')) n += e.arrows;
   }

@@ -60,9 +60,10 @@ export function drawScene(ctx, { state, client, config, map, getDragRect, select
   // Build-mode ghost
   if (client.buildMode && client.hoverTile) {
     const def = config.building[client.buildMode.kind];
+    const me = state.players[client.playerId];
     const ok = map.canPlaceBuilding(client.buildMode.kind, client.hoverTile.x, client.hoverTile.y) &&
-               state.players.red.gold >= def.cost.gold &&
-               state.players.red.wood >= def.cost.wood;
+               me.gold >= def.cost.gold &&
+               me.wood >= def.cost.wood;
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = ok ? '#4caf50' : '#d83b3b';
     ctx.fillRect(client.hoverTile.x * tile, client.hoverTile.y * tile, def.w * tile, def.h * tile);
