@@ -35,7 +35,20 @@
         <div id="lobby-status-msg"></div>
       </div>
       <div id="options">
-        <label><input type="checkbox" id="auto-fight" /> Auto-fight (red AI)</label>
+        <label>Red AI:
+          <select id="red-ai">
+            <option value="off">Off</option>
+            <option value="att">Att AI</option>
+            <option value="def">Def AI</option>
+          </select>
+        </label>
+        <label>Blue AI:
+          <select id="blue-ai">
+            <option value="off">Off</option>
+            <option value="att">Att AI</option>
+            <option value="def">Def AI</option>
+          </select>
+        </label>
         <label><input type="checkbox" id="always-hit" checked /> Always-hit arrows</label>
         <label>Stacks:
           <select id="stack-mode">

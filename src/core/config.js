@@ -89,6 +89,13 @@ export const CONFIG = {
     minPeasants: 5,
     armyThreshold: 6,
     waveCooldown: 30,
+    // Tuning for the defensive "Def AI" (see modules/ai/decision-def.js).
+    def: {
+      towerTarget:  3,   // towers to build and hold
+      minPeasants:  7,   // gatherers + arrow haulers
+      maxGatherers: 5,   // gather-job cap once an Arrow Building exists; the rest haul
+      threatRadius: 12,  // tiles from the Town Hall counted as "territory"
+    },
   },
 
   startResources: { gold: 300, wood: 200 },

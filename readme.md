@@ -103,7 +103,8 @@ The dispatcher in `commands/index.js` is the **only writer to sim state outside 
 | New unit kind         | `config.unit` + `modules/units/<kind>.js` + switch in `units/index.js` + sprite in `modules/render/sprites.js` |
 | New building          | `config.building` + (optional) `commands/build.js` + HUD button in `index.html` + sprite |
 | New command type      | `src/commands/<name>.js` with `validate*`/`apply*`, register in `DEFS` in `commands/index.js` |
-| New AI behavior       | `modules/ai/decision.js` — emit commands only, never mutate state     |
+| AI behavior           | `modules/ai/decision-att.js` / `decision-def.js` — emit commands only, never mutate state |
+| New AI personality    | `modules/ai/decision-<name>.js` + `DECIDERS` map in `ai/index.js` + `<option>` in `index.html` |
 | Map / placement rules | `modules/map/index.js` (`isWalkable`, `canPlaceBuilding`)             |
 | Pathfinding tweaks    | `modules/pathfinding/a-star.js`                                       |
 

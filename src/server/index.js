@@ -36,11 +36,11 @@ const sim   = createSimWorld(CONFIG);
 const lobby = createLobby();
 const relay = createRelay();
 
-// Sim stays dormant until two players agree on a match. autoFight is unused
-// (no AI players in this mode), but kept false so any stray AI tick in the sim
+// Sim stays dormant until two players agree on a match. aiType is unused
+// (no AI players in this mode), but kept 'off' so any stray AI tick in the sim
 // modules doesn't try to emit commands.
-sim.state.autoFight.red  = false;
-sim.state.autoFight.blue = false;
+sim.state.aiType.red  = 'off';
+sim.state.aiType.blue = 'off';
 
 // Wrap commands.submit defensively. In this lobby-gated flow only human-stamped
 // cmds reach the relay (AI is off), but we keep the wrap so future changes that

@@ -5,8 +5,8 @@
 //
 // Mode switch (single branch only — everything else is mode-agnostic):
 //   - SP: createLocalTransport(sim). RAF accumulator advances stepTick locally;
-//     AI runs in-sim against state.autoFight defaults.
-//   - MP: createNetTransport(...). Local AI is locked OFF (autoFight=false on
+//     AI runs in-sim against state.aiType defaults (blue 'att', red 'off').
+//   - MP: createNetTransport(...). Local AI is locked OFF (aiType='off' on
 //     both sides). stepTick is driven by tick-commands messages from the
 //     server, not by RAF. spawnInitial is delayed until the server's `hello`
 //     (match-start) message arrives after a lobby invite exchange.
@@ -37,11 +37,11 @@ export function startClient() {
 
   if (isMP) {
     // Invariant: in MP, AI runs ONLY on the server (and currently is unused
-    // since human-vs-human is the only flow). Lock both autoFight flags so any
+    // since human-vs-human is the only flow). Lock both sides to 'off' so any
     // stray AI tick on the client never emits commands that wouldn't make it
     // onto the wire.
-    sim.state.autoFight.red  = false;
-    sim.state.autoFight.blue = false;
+    sim.state.aiType.red  = 'off';
+    sim.state.aiType.blue = 'off';
   }
 
   let lobbyUI = null;
@@ -103,6 +103,7 @@ export function startClient() {
     units:       sim.units,
     pathfinding: sim.pathfinding,
     transport,
+    isMP,
     onRestart:   restart,
   });
   const render = createRender({

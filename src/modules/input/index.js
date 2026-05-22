@@ -6,7 +6,7 @@
 // client-local UI state (selection, build-mode, hover, option toggles) is set inline.
 //
 // Selection/buildMode/trainFromId/hoverTile/stackMode live on clientState; sim state holds
-// game settings (alwaysHit, autoFight, supplyPriority) that the simulation reads each tick.
+// game settings (alwaysHit, aiType, supplyPriority) that the simulation reads each tick.
 
 import { bindMouse } from './mouse.js';
 
@@ -29,11 +29,12 @@ import { bindMouse } from './mouse.js';
  *   units:        import('../units/index.js').UnitsModule,
  *   pathfinding:  import('../pathfinding/index.js').Pathfinding,
  *   transport:    import('../../transport/local.js').Transport,
+ *   isMP?:        boolean,
  *   onRestart?:   () => void,
  * }} deps
  * @returns {InputModule}
  */
-export function createInput({ state, client, config, map, entities, units, pathfinding, transport, onRestart }) {
+export function createInput({ state, client, config, map, entities, units, pathfinding, transport, isMP, onRestart }) {
   const mouse = { x: 0, y: 0, dragStart: null, dragRect: null };
   const deps = { state, client, config, map, entities, units, pathfinding, transport };
 
@@ -103,10 +104,14 @@ export function createInput({ state, client, config, map, entities, units, pathf
       alwaysHitEl.addEventListener('change', () => { state.alwaysHit = alwaysHitEl.checked; });
     }
 
-    const autoFightEl = document.getElementById('auto-fight');
-    if (autoFightEl) {
-      autoFightEl.checked = state.autoFight[client.playerId];
-      autoFightEl.addEventListener('change', () => { state.autoFight[client.playerId] = autoFightEl.checked; });
+    // Red AI / Blue AI dropdowns — pick which AI (if any) drives each side.
+    // In multiplayer the sim is human-vs-human, so the selectors are disabled.
+    for (const side of ['red', 'blue']) {
+      const aiEl = document.getElementById(`${side}-ai`);
+      if (!aiEl) continue;
+      aiEl.value = state.aiType[side];
+      aiEl.addEventListener('change', () => { state.aiType[side] = aiEl.value; });
+      if (isMP) aiEl.disabled = true;
     }
 
     const stackModeEl = document.getElementById('stack-mode');

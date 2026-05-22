@@ -1,12 +1,18 @@
-// PUBLIC API of the AI module. Drives any player flagged in state.autoFight.
-// Runs once per `decideEvery` per owner. Blue auto-fight defaults on; red is opt-in
-// via the HUD checkbox.
+// PUBLIC API of the AI module. Drives each side per its state.aiType:
+//   'off' — no AI; 'att' — the attacking AI; 'def' — the defensive turtle AI.
+// Runs once per `decideEvery` per owner. Blue defaults to 'att'; red defaults to 'off'.
+// Both are chosen from the HUD's Red AI / Blue AI dropdowns.
 //
 // AI does not mutate sim state directly: it inspects state read-only and submits
 // commands via the dispatcher, exactly like player input. Commands take effect at
 // the start of the next tick (deterministic ordering, see commands/).
 
-import { aiDecide } from './decision.js';
+import { aiDecideAtt } from './decision-att.js';
+import { aiDecideDef } from './decision-def.js';
+
+// Registry of AI personalities, keyed by state.aiType value. Adding a new AI is a
+// new decision-*.js module plus an entry here (and an <option> in the HUD).
+const DECIDERS = { att: aiDecideAtt, def: aiDecideDef };
 
 /**
  * @typedef {Object} AIModule
@@ -33,13 +39,14 @@ export function createAI({ state, config, entities, map, commands }) {
   function updateAI(dt) {
     if (state.gameOver) return;
     for (const owner of ['red', 'blue']) {
-      if (!state.autoFight[owner]) continue;
+      const decide = DECIDERS[state.aiType[owner]];
+      if (!decide) continue; // 'off' or unknown — this side is not AI-driven
       const t = timers[owner];
       t.decideTimer -= dt;
       t.waveTimer   -= dt;
       if (t.decideTimer > 0) continue;
       t.decideTimer = config.ai.decideEvery;
-      aiDecide(state, config, entities, map, commands, t, owner);
+      decide(state, config, entities, map, commands, t, owner);
     }
   }
 

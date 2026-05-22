@@ -87,14 +87,18 @@ Practical consequence: an archer army stalls without an Arrow Building + peasant
 
 ## HUD options
 
-- **Auto-fight (red AI)** — toggles the in-sim AI for the red player. In single-player you usually play Red with this OFF and let Blue's AI play against you (blue's AI is on by default).
+- **Red AI / Blue AI** — pick which AI (if any) drives each side: **Off**, **Att AI**, or **Def AI**. In single-player you usually play Red with **Red AI = Off** and let **Blue AI = Att AI** play against you (the default). Set both sides to an AI to watch them fight. Disabled in multiplayer.
 - **Always-hit arrows** — see Combat above.
 - **Stacks** — visual only; how overlapping units are drawn (Spread / Badge / Overlap).
 - **Supply** — peasant hauling priority (see Arrow logistics).
 
-## The AI opponent
+## The AI opponents
 
-The AI follows a fixed priority list each tick (decides every `1.5 s`):
+Both AIs decide every `1.5 s` and act only by issuing the same commands a human would.
+
+### Att AI — the attacker
+
+Follows a fixed priority list:
 
 1. Keep peasants gathering — biased toward wood until an Arrow Building exists.
 2. Build economy in order: **Arrow Building → Barracks → Archery Range → Tower**.
@@ -104,6 +108,18 @@ The AI follows a fixed priority list each tick (decides every `1.5 s`):
 6. When its army reaches `6` units and the wave timer has expired, **attack-move the entire army at the nearest enemy building**. Wave cooldown is `30 s`.
 
 It will never run out of gold to build because it reserves enemy-building cost before training peasants. Beating it generally means contesting before the first wave assembles, or out-massing it on archers behind Towers.
+
+### Def AI — the turtle
+
+Builds a defensive economy and **never marches on the enemy base**:
+
+1. Keep peasants gathering, but once an Arrow Building exists it caps the gatherer count — the spare peasants stay idle so the auto-logistics system uses them as wood/arrow haulers.
+2. Build a defensive economy: **Arrow Building → Archery Range → 3 Towers** (fanned in front of the Town Hall). No Barracks — archers only.
+3. Trickle peasants up to `7` (enough for gatherers + haulers).
+4. Train archers at the Archery Range (queue cap 2) and auto-garrison them into Towers.
+5. **Counter-attack only**: if an enemy unit enters its territory (within `12` tiles of the Town Hall), every un-garrisoned archer attack-moves it. Garrisoned archers stay in their Towers and fire with the `1.5×` range / `2×` damage bonus.
+
+Because the Def AI never sieges, a Def-vs-Def match (or Def vs an idle side) can run indefinitely with no winner. Beating it means breaking through the Tower line — or simply out-economy-ing it, since it commits no army of its own.
 
 ## Victory
 

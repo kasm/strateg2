@@ -1,4 +1,4 @@
-// Internal: AI decision pass. Same priorities as the original direct-mutation version:
+// Internal: the "Att AI" decision pass — an attacking economy AI. Priorities:
 //   1. Keep peasants assigned to gold/wood gathering; bias toward wood while arrowBuilding pending.
 //   2. Build economy in priority order: arrowBuilding -> barracks -> archeryRange -> tower.
 //      Each is independent so multiple can land in one tick if affordable.
@@ -6,19 +6,19 @@
 //      economy building is comfortably afforded, so the trickle doesn't starve the build order.
 //   4. Train one combat unit at each combat building when affordable.
 //   4b. Auto-garrison idle archers into nearest tower with room.
-//   5. Once army >= ai.armyThreshold and waveCooldown elapsed, attack-move at the nearest red building.
+//   5. Once army >= ai.armyThreshold and waveCooldown elapsed, attack-move at the nearest enemy building.
 //
 // The AI never mutates simulation state — every decision is submitted as a command and
 // applied at the start of the next tick. A local resource budget (`goldBudget`/`woodBudget`)
-// and shadow trainQueue / tower-garrison counters mirror the projected post-drain state so
-// the AI never over-commits inside a single decide pass.
+// and shadow trainQueue counter mirror the projected post-drain state so the AI never
+// over-commits inside a single decide pass.
 
 import { findGrassSpot } from './build-order.js';
-import { findNearestForestTile } from '../units/logistics.js';
+import { assignIdlePeasants, garrisonIdleArchers } from './common.js';
 
 const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange', 'tower'];
 
-export function aiDecide(state, config, entities, map, commands, ai, owner) {
+export function aiDecideAtt(state, config, entities, map, commands, ai, owner) {
   const enemy = owner === 'red' ? 'blue' : 'red';
   const me = state.players[owner];
   const myUnits     = entities.unitsOf(owner);
@@ -37,35 +37,9 @@ export function aiDecide(state, config, entities, map, commands, ai, owner) {
   let thQueue = townHall ? queueLen(townHall) : 0;
 
   // 1. Assign idle peasants. Bias to wood while arrowBuilding is pending and wood is thin.
-  let goldCount = peasants.filter(p => p.job === 'gatherGold').length;
-  let woodCount = peasants.filter(p => p.job === 'gatherWood').length;
-  const woodBias = !has('arrowBuilding') && me.wood < 200;
-  for (const p of peasants) {
-    if (p.job) continue;
-    const preferWood = woodBias ? woodCount < goldCount + 2 : woodCount < goldCount;
-    if (preferWood) {
-      const tile = findNearestForestTile(map, p.x, p.y, config.tile);
-      if (tile) {
-        commands.submit({
-          type: 'order', playerId: owner, unitIds: [p.id],
-          target: { kind: 'tile', x: tile.x, y: tile.y },
-        });
-        woodCount++;
-      }
-    } else {
-      const mine = entities.nearestOf(
-        e => e.type === 'building' && e.kind === 'goldMine' && e.gold > 0,
-        p.x, p.y,
-      );
-      if (mine) {
-        commands.submit({
-          type: 'order', playerId: owner, unitIds: [p.id],
-          target: { kind: 'entity', id: mine.id },
-        });
-        goldCount++;
-      }
-    }
-  }
+  assignIdlePeasants(config, entities, map, commands, owner, {
+    woodBias: !has('arrowBuilding') && me.wood < 200,
+  });
 
   // 2. Build economy. Independent branches so a flush tick can place more than one.
   for (const kind of ECONOMY_ORDER) {
@@ -113,32 +87,7 @@ export function aiDecide(state, config, entities, map, commands, ai, owner) {
   }
 
   // 4b. Auto-garrison idle archers into nearest tower with room.
-  const towers = myBuildings.filter(b => b.kind === 'tower');
-  if (towers.length > 0) {
-    const gMax = config.building.tower.garrisonMax;
-    // Shadow garrison count so a single pass doesn't oversubscribe one tower.
-    const shadow = new Map(towers.map(t => [t.id, t.garrisonIds.length]));
-    const idleArchers = myUnits.filter(u =>
-      u.kind === 'archer' && u.insideBuildingId == null && (u.job == null || u.job === 'attack')
-    );
-    for (const a of idleArchers) {
-      let best = null, bd = Infinity;
-      for (const t of towers) {
-        if (shadow.get(t.id) >= gMax) continue;
-        const cx = (t.tileX + t.w / 2) * config.tile;
-        const cy = (t.tileY + t.h / 2) * config.tile;
-        const d = (cx - a.x) ** 2 + (cy - a.y) ** 2;
-        if (d < bd) { bd = d; best = t; }
-      }
-      if (best) {
-        commands.submit({
-          type: 'order', playerId: owner, unitIds: [a.id],
-          target: { kind: 'entity', id: best.id },
-        });
-        shadow.set(best.id, shadow.get(best.id) + 1);
-      }
-    }
-  }
+  garrisonIdleArchers(config, entities, commands, owner);
 
   // 5. Wave attack.
   if (ai.waveTimer <= 0 && army.length >= config.ai.armyThreshold) {

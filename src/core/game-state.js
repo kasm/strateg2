@@ -20,7 +20,7 @@
  * @property {'red'|'blue'|null} gameOver
  * @property {boolean} alwaysHit
  * @property {'auto'|'wood'|'arrows'} supplyPriority
- * @property {{red:boolean, blue:boolean}} autoFight
+ * @property {{red:('off'|'att'|'def'), blue:('off'|'att'|'def')}} aiType  - which AI drives each side
  * @property {number} _nextId           - monotonic entity-id counter
  */
 
@@ -41,7 +41,7 @@ export function createGameState(config) {
     gameOver: null,
     alwaysHit: true,
     supplyPriority: 'auto',
-    autoFight: { red: false, blue: true },
+    aiType: { red: 'off', blue: 'att' },
     _nextId: 1,
   };
 }
