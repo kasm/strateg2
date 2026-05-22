@@ -33,7 +33,7 @@
  * @property {{forestWood:number,goldPerMine:number,gatherTime:number,gatherAmount:number}} resources
  * @property {number} arrowSpeed
  * @property {number} tickRate
- * @property {{decideEvery:number,minPeasants:number,armyThreshold:number,waveCooldown:number}} ai
+ * @property {{decideEvery:number,microEvery:number,minPeasants:number,armyThreshold:number,waveCooldown:number,def:Object,shared:Object,fsm:Object,utility:Object}} ai
  * @property {{gold:number,wood:number}} startResources
  */
 
@@ -86,6 +86,7 @@ export const CONFIG = {
 
   ai: {
     decideEvery: 1.5,
+    microEvery: 0.4,     // fast micro sub-tick interval (adaptive/utility/hybrid only)
     minPeasants: 5,
     armyThreshold: 6,
     waveCooldown: 30,
@@ -95,6 +96,35 @@ export const CONFIG = {
       minPeasants:  7,   // gatherers + arrow haulers
       maxGatherers: 5,   // gather-job cap once an Arrow Building exists; the rest haul
       threatRadius: 12,  // tiles from the Town Hall counted as "territory"
+    },
+    // Shared tuning for the complex AIs (adaptive / utility / hybrid).
+    shared: {
+      minPeasants:        6,    // peasant trickle target
+      maxGatherers:       6,    // gather-job cap once an Arrow Building exists
+      retreatHpFrac:      0.35, // pull an army unit back below this HP fraction
+      kiteTiles:          3,    // archer backs off when a melee enemy is this close (tiles)
+      focusTiles:         8,    // micro focus-fire engagement radius (tiles)
+      attackPowerMargin:  1.2,  // attack only when my army power exceeds enemy's by this
+      towerTarget:        3,    // towers to hold once defensive
+    },
+    // Phase state-machine tuning (adaptive + hybrid macro).
+    fsm: {
+      expandArmy:       2,   // army size that ends the opening phase
+      massArmy:         7,   // army size that ends the expand phase
+      pushPowerMargin:  1.2, // power ratio that flips mass -> push
+      defendThreatTiles: 11, // enemy this close to the Town Hall forces the defend phase
+    },
+    // Utility-scoring weights (utility macro + utility/hybrid micro).
+    utility: {
+      wBuildEcon:    1.0,
+      wTrainArmy:    1.1,
+      wTrainPeasant: 0.8,
+      wTower:        0.9,
+      wAttack:       1.0,
+      wFocusFire:    1.0,
+      wRetreat:      1.5,
+      wKite:         1.2,
+      wGarrison:     0.6,
     },
   },
 

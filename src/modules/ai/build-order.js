@@ -13,3 +13,16 @@ export function findGrassSpot(kind, cx, cy, radius, map) {
   }
   return null;
 }
+
+// Hint tiles near each owner's base for a given building kind. findGrassSpot relaxes
+// outward from these, so they are starting points rather than required placements.
+// Shared by the complex AIs (adaptive / utility / hybrid); att/def keep their own hints.
+const BUILD_HINTS = {
+  red:  { arrowBuilding: [5, 11], barracks: [6, 7], archeryRange: [3, 12], tower: [9, 9] },
+  blue: { arrowBuilding: [34, 11], barracks: [34, 8], archeryRange: [36, 12], tower: [27, 9] },
+};
+
+export function buildHint(kind, owner) {
+  const side = BUILD_HINTS[owner] || BUILD_HINTS.red;
+  return side[kind] || side.barracks;
+}

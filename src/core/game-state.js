@@ -20,7 +20,7 @@
  * @property {'red'|'blue'|null} gameOver
  * @property {boolean} alwaysHit
  * @property {'auto'|'wood'|'arrows'} supplyPriority
- * @property {{red:('off'|'att'|'def'), blue:('off'|'att'|'def')}} aiType  - which AI drives each side
+ * @property {{red:string, blue:string}} aiType  - which AI drives each side: off|att|def|adaptive|utility|hybrid
  * @property {number} _nextId           - monotonic entity-id counter
  */
 
