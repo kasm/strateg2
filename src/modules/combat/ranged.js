@@ -1,9 +1,10 @@
 // Internal: archer attack + arrow projectile spawn.
 
 import { distanceToTarget } from './geometry.js';
+import { unitStat } from '../../core/stats.js';
 
-export function archerStep(u, tgt, dt, { state, config, map, units, entities }) {
-  const def = config.unit.archer;
+export function archerStep(u, tgt, dt, deps) {
+  const { state, config, map, units, entities } = deps;
   const tx = tgt.type === 'building' ? (tgt.tileX + tgt.w / 2) * config.tile : tgt.x;
   const ty = tgt.type === 'building' ? (tgt.tileY + tgt.h / 2) * config.tile : tgt.y;
   const d = distanceToTarget(u, tgt, config.tile);
@@ -12,7 +13,7 @@ export function archerStep(u, tgt, dt, { state, config, map, units, entities }) 
   const inTower = inside && inside.kind === 'tower';
   const rangeMul = inTower ? config.building.tower.rangeMult : 1;
   const dmgMul   = inTower ? config.building.tower.dmgMult   : 1;
-  const rangePx = def.range * rangeMul * config.tile;
+  const rangePx = unitStat(deps, u, 'range') * rangeMul * config.tile;
 
   if (u.arrows <= 0) {
     u.job = null; u.jobTargetId = null; u.state = 'idle';
@@ -33,15 +34,16 @@ export function archerStep(u, tgt, dt, { state, config, map, units, entities }) 
 
   u.path = [];
   if (u.cooldown <= 0) {
-    spawnArrow(state, config, u, tgt, dmgMul);
+    spawnArrow(deps, u, tgt, dmgMul);
     u.arrows -= 1;
-    u.cooldown = def.cooldown;
+    u.cooldown = unitStat(deps, u, 'cooldown');
   }
 }
 
-function spawnArrow(state, config, from, tgt, dmgMul = 1) {
+function spawnArrow(deps, from, tgt, dmgMul = 1) {
+  const { state, config } = deps;
   const speed = config.arrowSpeed * config.tile;
-  const { x: tx, y: ty } = leadingAimPoint(from, tgt, config, speed);
+  const { x: tx, y: ty } = leadingAimPoint(deps, from, tgt, speed);
   const dx = tx - from.x, dy = ty - from.y;
   const dist = Math.hypot(dx, dy) || 1;
   state.projectiles.push({
@@ -49,7 +51,7 @@ function spawnArrow(state, config, from, tgt, dmgMul = 1) {
     vx: dx / dist * speed,
     vy: dy / dist * speed,
     targetId: tgt.id,
-    dmg: config.unit.archer.dmg * dmgMul,
+    dmg: unitStat(deps, from, 'dmg') * dmgMul,
     owner: from.owner,
     life: 3.0,
   });
@@ -58,14 +60,15 @@ function spawnArrow(state, config, from, tgt, dmgMul = 1) {
 // Aim where the target will be when the arrow arrives, not where it is now.
 // Without this, a swordsman walking the last tile to the wall easily steps out
 // of the 16-px hit circle during the arrow's ~0.5 s flight.
-function leadingAimPoint(from, tgt, config, arrowSpeed) {
+function leadingAimPoint(deps, from, tgt, arrowSpeed) {
+  const { config } = deps;
   if (tgt.type === 'building') {
     return {
       x: (tgt.tileX + tgt.w / 2) * config.tile,
       y: (tgt.tileY + tgt.h / 2) * config.tile,
     };
   }
-  const vel = estimateVelocity(tgt, config);
+  const vel = estimateVelocity(deps, tgt);
   // Solve |from + arrowSpeed * t * dir| ≈ |tgt + vel * t|, approximated by
   // estimating impact time from current distance / arrow speed and iterating once.
   const d0 = Math.hypot(tgt.x - from.x, tgt.y - from.y);
@@ -77,14 +80,14 @@ function leadingAimPoint(from, tgt, config, arrowSpeed) {
   return { x: tgt.x + vel.vx * t, y: tgt.y + vel.vy * t };
 }
 
-function estimateVelocity(u, config) {
+function estimateVelocity(deps, u) {
   if (!u.path || u.path.length === 0) return { vx: 0, vy: 0 };
   const next = u.path[0];
-  const tile = config.tile;
+  const tile = deps.config.tile;
   const nx = next.x * tile + tile / 2, ny = next.y * tile + tile / 2;
   const dx = nx - u.x, dy = ny - u.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 0.01) return { vx: 0, vy: 0 };
-  const speed = config.unit[u.kind].speed * tile;
+  const speed = unitStat(deps, u, 'speed') * tile;
   return { vx: dx / dist * speed, vy: dy / dist * speed };
 }

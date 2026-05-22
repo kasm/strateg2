@@ -9,25 +9,11 @@
   <div id="game">
     <canvas id="canvas" width="1152" height="640"></canvas>
     <div id="hud">
-      <div id="resources">
-        <span>Gold: <b id="gold">0</b></span>
-        <span>Wood: <b id="wood">0</b></span>
-        <span>Arrows: <b id="arrows-total">0</b></span>
-        <span id="pop-info">Units: <b id="pop">0</b></span>
-      </div>
-      <div id="build-menu">
-        <button data-build="barracks">Barracks (200g 100w)</button>
-        <button data-build="archeryRange">Archery Range (200g 100w)</button>
-        <button data-build="arrowBuilding">Arrow Building (100g 150w)</button>
-        <button data-build="tower">Tower (150g 100w)</button>
-        <button data-build="cancel">Cancel</button>
-      </div>
-      <div id="train-menu" style="display:none">
-        <span id="train-title">Train:</span>
-        <button data-train="peasant">Peasant (50g)</button>
-        <button data-train="swordsman">Swordsman (80g)</button>
-        <button data-train="archer">Archer (70g)</button>
-      </div>
+      <!-- Resource row + action menus are generated from config by client/hud-dom.js. -->
+      <div id="resources"></div>
+      <div id="build-menu"></div>
+      <div id="train-menu" style="display:none"></div>
+      <div id="research-menu" style="display:none"></div>
       <div id="lobby-players-panel" style="display:none">
         <div class="lobby-section-title">Players online</div>
         <div id="lobby-self"></div>

@@ -2,6 +2,7 @@
 
 import { moveAdjacentTo, moveAlongPath } from './movement.js';
 import { doAttack } from './logistics.js';
+import { unitStat } from '../../core/stats.js';
 
 export function updateArcherUnit(u, dt, deps) {
   const { config, entities } = deps;
@@ -20,7 +21,7 @@ export function updateArcherUnit(u, dt, deps) {
         : Math.hypot(u.x - enemy.x, u.y - enemy.y);
       const inside = entities.byId(u.insideBuildingId);
       const inTower = inside && inside.kind === 'tower';
-      const range = config.unit.archer.range * (inTower ? config.building.tower.rangeMult : 1);
+      const range = unitStat(deps, u, 'range') * (inTower ? config.building.tower.rangeMult : 1);
       if (d <= range * config.tile) {
         u.job = 'attack'; u.jobTargetId = enemy.id; return;
       }

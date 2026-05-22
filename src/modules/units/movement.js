@@ -1,5 +1,7 @@
 // Internal: tile-level movement primitives shared by all unit kinds.
 
+import { unitStat } from '../../core/stats.js';
+
 export function setMoveTarget(u, gx, gy, { pathfinding }) {
   if (u.tileX === gx && u.tileY === gy) { u.path = []; return true; }
   const path = pathfinding.aStar(u.tileX, u.tileY, gx, gy);
@@ -26,7 +28,8 @@ export function moveAdjacentTo(u, e, deps) {
   return setMoveTarget(u, spot.x, spot.y, deps);
 }
 
-export function moveAlongPath(u, dt, { config, map }) {
+export function moveAlongPath(u, dt, deps) {
+  const { config, map } = deps;
   if (!u.path || u.path.length === 0) {
     if (u.state === 'moving') u.state = 'idle';
     return false;
@@ -35,7 +38,7 @@ export function moveAlongPath(u, dt, { config, map }) {
   const target = map.tileCenter(next.x, next.y);
   const dx = target.x - u.x, dy = target.y - u.y;
   const dist = Math.hypot(dx, dy);
-  const speed = config.unit[u.kind].speed * config.tile;
+  const speed = unitStat(deps, u, 'speed') * config.tile;
   const step = speed * dt;
   if (dist <= step) {
     u.x = target.x; u.y = target.y;

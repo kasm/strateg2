@@ -1,7 +1,7 @@
 // Internal: helpers shared by the AI deciders (decision-att.js, decision-def.js).
 // Like the deciders, these never mutate sim state — they only submit commands.
 
-import { findNearestForestTile } from '../units/logistics.js';
+import { findNearestResourceTile } from '../units/logistics.js';
 
 /**
  * Assign idle peasants of `owner` to gold/wood gathering, kept roughly balanced.
@@ -11,14 +11,14 @@ import { findNearestForestTile } from '../units/logistics.js';
  */
 export function assignIdlePeasants(config, entities, map, commands, owner, { woodBias, maxGatherers = Infinity }) {
   const peasants = entities.unitsOf(owner).filter(u => u.kind === 'peasant');
-  let goldCount = peasants.filter(p => p.job === 'gatherGold').length;
-  let woodCount = peasants.filter(p => p.job === 'gatherWood').length;
+  let goldCount = peasants.filter(p => p.job === 'gather' && p.gatherResource === 'gold').length;
+  let woodCount = peasants.filter(p => p.job === 'gather' && p.gatherResource === 'wood').length;
   for (const p of peasants) {
     if (p.job) continue;
     if (goldCount + woodCount >= maxGatherers) break;
     const preferWood = woodBias ? woodCount < goldCount + 2 : woodCount < goldCount;
     if (preferWood) {
-      const tile = findNearestForestTile(map, p.x, p.y, config.tile);
+      const tile = findNearestResourceTile(map, 'wood', p.x, p.y, config.tile);
       if (tile) {
         commands.submit({
           type: 'order', playerId: owner, unitIds: [p.id],

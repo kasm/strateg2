@@ -1,6 +1,9 @@
 // Internal: building per-tick updates.
 //   - arrowBuilding consumes wood and produces arrows over time
 //   - any building with a non-empty trainQueue advances its trainTimer and spawns units
+//   - any building with a non-empty researchQueue advances its researchTimer
+
+import { applyResearchComplete } from '../../core/research.js';
 
 export function stepBuildings(dt, { state, config, entities, pathfinding }) {
   for (const b of state.entities) {
@@ -22,7 +25,7 @@ export function stepBuildings(dt, { state, config, entities, pathfinding }) {
 
     if (b.kind === 'tower' && b.arrows > 0 && b.garrisonIds.length > 0) {
       const towerDef = config.building.tower;
-      const qMax = config.unit.archer.quiverMax;
+      const qMax = config.unit.archer.quiver.max;
       b.distributeTimer += dt;
       if (b.distributeTimer >= towerDef.distributeTime) {
         b.distributeTimer = 0;
@@ -43,6 +46,16 @@ export function stepBuildings(dt, { state, config, entities, pathfinding }) {
         b.trainQueue.shift();
         const spot = pathfinding.findAdjacentWalkable(b.tileX, b.tileY, b.w, b.h, b.tileX, b.tileY);
         if (spot) entities.makeUnit(kind, b.owner, spot.x, spot.y);
+      }
+    }
+
+    if (b.researchQueue && b.researchQueue.length > 0) {
+      const job = b.researchQueue[0];
+      const rDef = config.research[job.id];
+      job.timer += dt;
+      if (job.timer >= rDef.time) {
+        b.researchQueue.shift();
+        applyResearchComplete(config, state, b.owner, job.id);
       }
     }
   }

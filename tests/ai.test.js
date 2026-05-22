@@ -23,8 +23,8 @@ describe('Att AI', () => {
     ai.updateAI(2.0);
     commands.drain();
     const peasants = entities.unitsOf('blue').filter(p => p.kind === 'peasant');
-    const goldJobs = peasants.filter(p => p.job === 'gatherGold').length;
-    const woodJobs = peasants.filter(p => p.job === 'gatherWood').length;
+    const goldJobs = peasants.filter(p => p.job === 'gather' && p.gatherResource === 'gold').length;
+    const woodJobs = peasants.filter(p => p.job === 'gather' && p.gatherResource === 'wood').length;
     expect(goldJobs + woodJobs).toBe(peasants.length);
     expect(Math.abs(goldJobs - woodJobs)).toBeLessThanOrEqual(1);
   });
@@ -84,7 +84,7 @@ describe('AI dispatch by state.aiType', () => {
     w.state.players.red.wood = 1000;
     step(w);
     const peasants = w.entities.unitsOf('red').filter(p => p.kind === 'peasant');
-    const assigned = peasants.filter(p => p.job === 'gatherGold' || p.job === 'gatherWood').length;
+    const assigned = peasants.filter(p => p.job === 'gather').length;
     expect(assigned).toBe(peasants.length);
     const built = w.entities.buildingsOf('red').some(b => b.kind === 'arrowBuilding');
     expect(built).toBe(true);
@@ -118,7 +118,7 @@ describe('Def AI', () => {
     w.state.players.red.wood = 100000;
     step(w);
     const peasants = w.entities.unitsOf('red').filter(p => p.kind === 'peasant');
-    const gatherers = peasants.filter(p => p.job === 'gatherGold' || p.job === 'gatherWood').length;
+    const gatherers = peasants.filter(p => p.job === 'gather').length;
     expect(gatherers).toBeLessThanOrEqual(CONFIG.ai.def.maxGatherers);
     expect(peasants.length - gatherers).toBeGreaterThanOrEqual(1); // spare haulers stay idle
   });

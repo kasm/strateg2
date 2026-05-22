@@ -7,7 +7,8 @@ import { buildEmptyGrid, paintDefaultForests } from './grid.js';
  * @typedef {Object} Tile
  * @property {'grass'|'forest'|'goldmine'|'blocked'} type
  * @property {Object|null} building   - back-ref to occupying building entity
- * @property {number}  [wood]         - remaining wood (forest tiles)
+ * @property {string}  [resource]     - resource id this tile yields (gatherable tiles)
+ * @property {number}  [amount]       - remaining resource amount (gatherable tiles)
  *
  * @typedef {Object} MapModule
  * @property {number} w
@@ -85,7 +86,7 @@ export function createMap({ config }) {
   function reset() {
     // Replace tiles in place — keep referential identity of the outer object.
     const fresh = buildEmptyGrid(w, h);
-    paintDefaultForests(fresh, w, h, config.resources.forestWood);
+    paintDefaultForests(fresh, w, h, config.tiles.forest);
     state.tiles.length = 0;
     for (const row of fresh) state.tiles.push(row);
   }

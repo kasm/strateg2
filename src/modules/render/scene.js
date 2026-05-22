@@ -1,6 +1,7 @@
 // Internal: per-frame scene composition (tiles, buildings, units, projectiles, overlays).
 
 import { drawBuilding, drawUnit, drawUnitStack, drawUnitSpread } from './sprites.js';
+import { canAfford } from '../../core/economy.js';
 
 export function drawScene(ctx, { state, client, config, map, getDragRect, selectedIdSet }) {
   const tile = config.tile;
@@ -62,8 +63,7 @@ export function drawScene(ctx, { state, client, config, map, getDragRect, select
     const def = config.building[client.buildMode.kind];
     const me = state.players[client.playerId];
     const ok = map.canPlaceBuilding(client.buildMode.kind, client.hoverTile.x, client.hoverTile.y) &&
-               me.gold >= def.cost.gold &&
-               me.wood >= def.cost.wood;
+               canAfford(me, def.cost);
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = ok ? '#4caf50' : '#d83b3b';
     ctx.fillRect(client.hoverTile.x * tile, client.hoverTile.y * tile, def.w * tile, def.h * tile);

@@ -11,6 +11,7 @@
  * @property {number[]} selectedIds            - selected entity IDs (alive-only is enforced at read sites).
  * @property {{kind:string}|null} buildMode    - non-null while placing a building.
  * @property {number|null} trainFromId         - building ID whose train menu is open.
+ * @property {number|null} researchFromId      - building ID whose research menu is open.
  * @property {{x:number,y:number}|null} hoverTile
  * @property {'spread'|'overlap'|'badge'} stackMode
  */
@@ -22,6 +23,7 @@ export function createClientState() {
     selectedIds: [],
     buildMode: null,
     trainFromId: null,
+    researchFromId: null,
     hoverTile: null,
     stackMode: 'spread',
   };

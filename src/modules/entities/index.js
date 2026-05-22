@@ -7,6 +7,8 @@
 import { makeUnitRecord, makeBuildingRecord } from './factory.js';
 import { findEntityAtPx, nearestEntity, entitiesOfKindOwner } from './queries.js';
 import { ejectAllFromTower } from '../units/archer.js';
+import { seedTreasury } from '../../core/economy.js';
+import { seedResearch } from '../../core/research.js';
 
 /**
  * @typedef {Object} EntitiesModule
@@ -50,7 +52,7 @@ export function createEntities({ state, config, map, pathfinding }) {
 
   function makeBuilding(kind, owner, tileX, tileY) {
     const def = config.building[kind];
-    const b = makeBuildingRecord(state._nextId++, kind, owner, tileX, tileY, def, config);
+    const b = makeBuildingRecord(state._nextId++, kind, owner, tileX, tileY, def);
     map.setBuildingTiles(b, true);
     state.entities.push(b);
     state.entitiesById.set(b.id, b);
@@ -64,10 +66,10 @@ export function createEntities({ state, config, map, pathfinding }) {
     state.projectiles.length = 0;
     state.gameOver = null;
     state.tick = 0;
-    state.players.red.gold  = config.startResources.gold;
-    state.players.red.wood  = config.startResources.wood;
-    state.players.blue.gold = config.startResources.gold;
-    state.players.blue.wood = config.startResources.wood;
+    for (const side of ['red', 'blue']) {
+      seedTreasury(state.players[side], config);
+      seedResearch(state.players[side], config);
+    }
 
     makeBuilding('goldMine', 'neutral', 4, 9);
     makeBuilding('goldMine', 'neutral', config.mapW - 6, 9);

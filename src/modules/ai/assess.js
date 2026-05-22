@@ -45,7 +45,7 @@ export function assess(state, config, entities, map, owner) {
   // "Field" army = army units not garrisoned inside a tower (the ones we can manoeuvre).
   const fieldArmy  = army.filter(u => u.insideBuildingId == null);
   const idlePeasants = peasants.filter(p => !p.job && p.insideBuildingId == null);
-  const gatherers  = peasants.filter(p => p.job === 'gatherGold' || p.job === 'gatherWood');
+  const gatherers  = peasants.filter(p => p.job === 'gather');
 
   const enemySwordsmen = enemyUnits.filter(u => u.kind === 'swordsman');
   const enemyArchers   = enemyUnits.filter(u => u.kind === 'archer');

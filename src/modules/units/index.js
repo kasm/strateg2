@@ -49,10 +49,12 @@ export function createUnits({ state, config, map, pathfinding, entities, combat 
         u.tileY = inside.tileY + Math.floor(inside.h / 2);
         u.path = null;
       }
-      switch (u.kind) {
-        case 'peasant':   updatePeasant(u, dt, deps);    break;
-        case 'swordsman': updateMeleeUnit(u, dt, deps);  break;
-        case 'archer':    updateArcherUnit(u, dt, deps); break;
+      // Dispatch by declared role, not kind — a new melee/ranged/worker unit is
+      // pure config. A genuinely new behaviour adds one case here.
+      switch (config.unit[u.kind].role) {
+        case 'worker': updatePeasant(u, dt, deps);    break;
+        case 'melee':  updateMeleeUnit(u, dt, deps);  break;
+        case 'ranged': updateArcherUnit(u, dt, deps); break;
       }
     }
   }

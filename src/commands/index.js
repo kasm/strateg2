@@ -16,13 +16,14 @@
 import { validateOrder, applyOrder } from './order.js';
 import { validateBuild, applyBuild } from './build.js';
 import { validateTrain, applyTrain } from './train.js';
+import { validateResearch, applyResearch } from './research.js';
 import { validateEject, applyEject } from './eject.js';
 import { validateRestart, applyRestart } from './restart.js';
 import { validateSetOption, applySetOption } from './set-option.js';
 
 /**
  * @typedef {Object} Command
- * @property {'order'|'build'|'train'|'eject'|'restart'|'setOption'} type
+ * @property {'order'|'build'|'train'|'research'|'eject'|'restart'|'setOption'} type
  * @property {string} playerId    - 'red' | 'blue' (or future bot id)
  * @property {number} [tick]      - filled by submit() if absent; tick the cmd applies at
  * @property {number} [seq]       - filled by submit() if absent; monotonic per-player counter
@@ -41,6 +42,7 @@ const DEFS = {
   order:     { validate: validateOrder,     apply: applyOrder     },
   build:     { validate: validateBuild,     apply: applyBuild     },
   train:     { validate: validateTrain,     apply: applyTrain     },
+  research:  { validate: validateResearch,  apply: applyResearch  },
   eject:     { validate: validateEject,     apply: applyEject     },
   restart:   { validate: validateRestart,   apply: applyRestart   },
   setOption: { validate: validateSetOption, apply: applySetOption },

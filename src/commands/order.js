@@ -48,15 +48,18 @@ export function applyOrder(deps, cmd) {
  * runs whether the order arrives via mouse, AI, or network.
  */
 export function issueOrderTo(u, tgt, tile, deps) {
-  const { map, entities, units } = deps;
-  u.job = null; u.jobTargetId = null; u.targetId = null; u.targetTile = null; u.path = null;
+  const { config, map, entities, units } = deps;
+  u.job = null; u.jobTargetId = null; u.targetId = null; u.targetTile = null;
+  u.gatherResource = null; u.path = null;
 
   if (tgt) {
     if (tgt.owner && tgt.owner !== u.owner && tgt.owner !== 'neutral') {
       u.job = 'attack'; u.jobTargetId = tgt.id; return;
     }
-    if (tgt.kind === 'goldMine') {
-      u.job = 'gatherGold'; u.jobTargetId = tgt.id; return;
+    // Resource node (e.g. gold mine) — any building whose def carries a `node` payload.
+    const node = tgt.type === 'building' ? config.building[tgt.kind]?.node : null;
+    if (node) {
+      u.job = 'gather'; u.gatherResource = node.resource; u.jobTargetId = tgt.id; return;
     }
     if (tgt.type === 'building' && tgt.kind === 'tower' && tgt.owner === u.owner && u.kind === 'archer') {
       u.job = 'enterTower'; u.jobTargetId = tgt.id; return;
@@ -84,8 +87,11 @@ export function issueOrderTo(u, tgt, tile, deps) {
 
   if (!tile) return;
   const t = map.tileAt(tile.x, tile.y);
-  if (t && t.type === 'forest') {
-    u.job = 'gatherWood'; u.targetTile = { x: tile.x, y: tile.y }; return;
+  // Gatherable tile — type declared in config.tiles with the resource it yields.
+  const tileDef = t ? config.tiles[t.type] : null;
+  if (tileDef && t.amount > 0) {
+    u.job = 'gather'; u.gatherResource = tileDef.resource;
+    u.targetTile = { x: tile.x, y: tile.y }; return;
   }
   if (map.isWalkable(tile.x, tile.y)) units.setMoveTarget(u, tile.x, tile.y);
 }

@@ -53,7 +53,7 @@ function findArrowConsumer(u, config, entities) {
     e => {
       if (e.owner !== u.owner) return false;
       if (e.type === 'unit') {
-        return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
+        return e.kind === 'archer' && e.arrows < config.unit.archer.quiver.max;
       }
       if (e.type === 'building' && e.kind === 'tower') {
         return e.garrisonIds.length > 0 && e.arrows < config.building.tower.arrowCap;
@@ -64,8 +64,14 @@ function findArrowConsumer(u, config, entities) {
   );
 }
 
-export function doGather(u, dt, resource, deps) {
+// Generic gather: the resource being gathered is on `u.gatherResource`; where it
+// comes from is resolved from config.resourceTypes[resource].source — a building
+// `node` (e.g. gold mine) or a map `tile` type (e.g. forest). Adding a resource is
+// pure config; no branch here is keyed to gold or wood.
+export function doGather(u, dt, deps) {
   const { state, config, entities } = deps;
+  const resource = u.gatherResource;
+  if (!resource) { u.job = null; return; }
 
   if (u.carrying && u.carrying.kind === resource && u.carrying.amount > 0) {
     // Return to town hall to deposit.
@@ -87,18 +93,20 @@ export function doGather(u, dt, resource, deps) {
     return;
   }
 
-  if (resource === 'gold') gatherGold(u, dt, deps);
-  else gatherWood(u, dt, deps);
+  const src = config.resourceTypes[resource]?.source;
+  if (!src) { u.job = null; return; }
+  if (src.kind === 'node') gatherFromNode(u, dt, resource, deps);
+  else gatherFromTile(u, dt, resource, deps);
 }
 
-function gatherGold(u, dt, deps) {
+// Gather from a building node — any building whose def carries a matching `node`.
+function gatherFromNode(u, dt, resource, deps) {
   const { config, entities } = deps;
+  const isNode = (e) => e.type === 'building'
+    && config.building[e.kind]?.node?.resource === resource && (e[resource] || 0) > 0;
   let mine = entities.byId(u.jobTargetId);
-  if (!mine || mine.hp <= 0 || mine.gold <= 0) {
-    mine = entities.nearestOf(
-      e => e.type === 'building' && e.kind === 'goldMine' && e.gold > 0,
-      u.x, u.y,
-    );
+  if (!mine || mine.hp <= 0 || !isNode(mine)) {
+    mine = entities.nearestOf(isNode, u.x, u.y);
     u.jobTargetId = mine ? mine.id : null;
   }
   if (!mine) { u.job = null; return; }
@@ -111,10 +119,10 @@ function gatherGold(u, dt, deps) {
     u.gatherTimer += dt;
     if (u.gatherTimer >= config.resources.gatherTime) {
       u.gatherTimer = 0;
-      const amount = Math.min(config.resources.gatherAmount, mine.gold);
-      mine.gold -= amount;
-      u.carrying = { kind: 'gold', amount };
-      if (mine.gold <= 0) entities.killEntity(mine);
+      const amount = Math.min(config.resources.gatherAmount, mine[resource]);
+      mine[resource] -= amount;
+      u.carrying = { kind: resource, amount };
+      if (mine[resource] <= 0) entities.killEntity(mine);
     }
     return;
   }
@@ -124,12 +132,13 @@ function gatherGold(u, dt, deps) {
   moveAlongPath(u, dt, deps);
 }
 
-function gatherWood(u, dt, deps) {
+// Gather from a map tile — any tile carrying a matching `resource`.
+function gatherFromTile(u, dt, resource, deps) {
   const { config, map, pathfinding } = deps;
   let tile = u.targetTile;
-  const inv = (t) => !t || t.type !== 'forest' || t.wood <= 0;
+  const inv = (t) => !t || t.resource !== resource || t.amount <= 0;
   if (!tile || inv(map.tileAt(tile.x, tile.y))) {
-    tile = findNearestForestTile(map, u.x, u.y, config.tile);
+    tile = findNearestResourceTile(map, resource, u.x, u.y, config.tile);
     u.targetTile = tile;
   }
   if (!tile) { u.job = null; return; }
@@ -141,10 +150,10 @@ function gatherWood(u, dt, deps) {
     if (u.gatherTimer >= config.resources.gatherTime) {
       u.gatherTimer = 0;
       const t = map.tileAt(tile.x, tile.y);
-      const amount = Math.min(config.resources.gatherAmount, t.wood);
-      t.wood -= amount;
-      u.carrying = { kind: 'wood', amount };
-      if (t.wood <= 0) { t.type = 'grass'; u.targetTile = null; }
+      const amount = Math.min(config.resources.gatherAmount, t.amount);
+      t.amount -= amount;
+      u.carrying = { kind: resource, amount };
+      if (t.amount <= 0) { t.type = 'grass'; t.resource = null; t.amount = 0; u.targetTile = null; }
     }
     return;
   }
@@ -156,12 +165,12 @@ function gatherWood(u, dt, deps) {
   moveAlongPath(u, dt, deps);
 }
 
-export function findNearestForestTile(map, px, py, tileSize) {
+export function findNearestResourceTile(map, resource, px, py, tileSize) {
   let best = null, bd = Infinity;
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       const t = map.tiles[y][x];
-      if (t.type !== 'forest' || t.wood <= 0) continue;
+      if (t.resource !== resource || t.amount <= 0) continue;
       const cx = x * tileSize + tileSize / 2, cy = y * tileSize + tileSize / 2;
       const d = (cx - px) ** 2 + (cy - py) ** 2;
       if (d < bd) { bd = d; best = { x, y }; }
@@ -257,7 +266,7 @@ export function doHaulArrows(u, dt, deps) {
 function isArrowConsumer(e, owner, config) {
   if (e.owner !== owner) return false;
   if (e.type === 'unit') {
-    return e.kind === 'archer' && e.arrows < config.unit.archer.quiverMax;
+    return e.kind === 'archer' && e.arrows < config.unit.archer.quiver.max;
   }
   if (e.type === 'building' && e.kind === 'tower') {
     return e.garrisonIds.length > 0 && e.arrows < config.building.tower.arrowCap;
@@ -268,7 +277,7 @@ function isArrowConsumer(e, owner, config) {
 function consumerStillValid(c, owner, config) {
   if (!c || c.hp <= 0 || c.owner !== owner) return false;
   if (c.type === 'unit') {
-    return c.insideBuildingId == null && c.arrows < config.unit.archer.quiverMax;
+    return c.insideBuildingId == null && c.arrows < config.unit.archer.quiver.max;
   }
   if (c.type === 'building' && c.kind === 'tower') {
     return c.garrisonIds.length > 0 && c.arrows < config.building.tower.arrowCap;
@@ -277,7 +286,7 @@ function consumerStillValid(c, owner, config) {
 }
 
 function consumerCap(c, config) {
-  return c.type === 'unit' ? config.unit.archer.quiverMax : config.building.tower.arrowCap;
+  return c.type === 'unit' ? config.unit.archer.quiver.max : config.building.tower.arrowCap;
 }
 
 function consumerDepositAdjacent(u, c, config) {

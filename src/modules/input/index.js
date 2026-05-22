@@ -48,25 +48,53 @@ export function createInput({ state, client, config, map, entities, units, pathf
     });
   }
 
+  // Refresh the per-selection building menus (train + research) and the eject button.
+  // Public name kept as `refreshTrainMenu` for callers; it now covers research too.
   function refreshTrainMenu() {
-    const menu = document.getElementById('train-menu');
+    const trainMenu = document.getElementById('train-menu');
+    const researchMenu = document.getElementById('research-menu');
     client.trainFromId = null;
-    if (client.selectedIds.length === 1) {
-      const s = entities.byId(client.selectedIds[0]);
-      if (s && s.type === 'building' && s.owner === client.playerId && config.building[s.kind].trains.length) {
-        client.trainFromId = s.id;
-        const allowed = new Set(config.building[s.kind].trains);
-        document.querySelectorAll('#train-menu button').forEach(btn => {
-          btn.style.display = allowed.has(btn.dataset.train) ? '' : 'none';
-        });
-        document.getElementById('train-title').textContent = 'Train from ' + s.kind + ':';
-        menu.style.display = '';
-        refreshEjectButton();
-        return;
-      }
+    client.researchFromId = null;
+
+    const s = client.selectedIds.length === 1 ? entities.byId(client.selectedIds[0]) : null;
+    const ownBuilding = s && s.type === 'building' && s.owner === client.playerId;
+    const bDef = ownBuilding ? config.building[s.kind] : null;
+
+    if (bDef && bDef.trains.length) {
+      client.trainFromId = s.id;
+      const allowed = new Set(bDef.trains);
+      trainMenu.querySelectorAll('button').forEach(btn => {
+        btn.style.display = allowed.has(btn.dataset.train) ? '' : 'none';
+      });
+      document.getElementById('train-title').textContent = 'Train from ' + s.kind + ':';
+      trainMenu.style.display = '';
+    } else {
+      trainMenu.style.display = 'none';
     }
-    menu.style.display = 'none';
+
+    if (researchMenu && bDef && bDef.researches) {
+      client.researchFromId = s.id;
+      refreshResearchButtons(s);
+      researchMenu.style.display = '';
+    } else if (researchMenu) {
+      researchMenu.style.display = 'none';
+    }
+
     refreshEjectButton();
+  }
+
+  // Show only the selected building's research; disable already-done / in-progress ones.
+  function refreshResearchButtons(b) {
+    const allowed = new Set(config.building[b.kind].researches);
+    const research = state.players[client.playerId]?.research;
+    const done = new Set(research?.done || []);
+    const pending = new Set(research?.pending || []);
+    document.querySelectorAll('#research-menu button').forEach(btn => {
+      const id = btn.dataset.research;
+      if (!allowed.has(id)) { btn.style.display = 'none'; return; }
+      btn.style.display = '';
+      btn.disabled = done.has(id) || pending.has(id);
+    });
   }
 
   function refreshEjectButton() {
@@ -99,6 +127,20 @@ export function createInput({ state, client, config, map, entities, units, pathf
           type: 'train', playerId: client.playerId,
           buildingId: b.id, unitKind: kind,
         });
+      });
+    });
+
+    document.querySelectorAll('#research-menu button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const researchId = btn.dataset.research;
+        const b = client.researchFromId != null ? entities.byId(client.researchFromId) : null;
+        if (!b || b.hp <= 0) return;
+        transport.submit({
+          type: 'research', playerId: client.playerId,
+          buildingId: b.id, researchId,
+        });
+        // Reflect the now-pending state on the next frame (post-drain).
+        requestAnimationFrame(refreshTrainMenu);
       });
     });
 

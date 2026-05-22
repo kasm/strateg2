@@ -6,10 +6,13 @@
 // Those are in client/client-state.js. The fields below are part of the authoritative,
 // serializable simulation state.
 
+import { seedTreasury } from './economy.js';
+import { seedResearch } from './research.js';
+
 /**
  * @typedef {Object} PlayerState
- * @property {number} gold
- * @property {number} wood
+ *   A resource bag: one numeric field per treasury resource id (see config.resourceTypes).
+ *   `gold` and `wood` are the stock resources; more are added purely in config.
  *
  * @typedef {Object} GameState
  * @property {number} tick              - monotonic tick counter, incremented once per sim step
@@ -29,15 +32,17 @@
  * @returns {GameState}
  */
 export function createGameState(config) {
+  const players = { red: {}, blue: {} };
+  for (const side of ['red', 'blue']) {
+    seedTreasury(players[side], config);
+    seedResearch(players[side], config);
+  }
   return {
     tick: 0,
     entities: [],
     entitiesById: new Map(),
     projectiles: [],
-    players: {
-      red:  { gold: config.startResources.gold, wood: config.startResources.wood },
-      blue: { gold: config.startResources.gold, wood: config.startResources.wood },
-    },
+    players,
     gameOver: null,
     alwaysHit: true,
     supplyPriority: 'auto',
@@ -52,10 +57,10 @@ export function resetGameState(state, config) {
   state.entities.length = 0;
   state.entitiesById.clear();
   state.projectiles.length = 0;
-  state.players.red.gold = config.startResources.gold;
-  state.players.red.wood = config.startResources.wood;
-  state.players.blue.gold = config.startResources.gold;
-  state.players.blue.wood = config.startResources.wood;
+  for (const side of ['red', 'blue']) {
+    seedTreasury(state.players[side], config);
+    seedResearch(state.players[side], config);
+  }
   state.gameOver = null;
   state._nextId = 1;
 }

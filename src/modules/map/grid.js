@@ -16,14 +16,17 @@ const DEFAULT_FORESTS = [
   [34, 4, 5, 3], [33, 14, 5, 3],
 ];
 
-export function paintDefaultForests(tiles, w, h, woodPerTile) {
+// Paint the stock forest layout. A resource tile carries a generic `resource`/`amount`
+// pair (from config.tiles[<type>]) so the gather logic is not forest/wood-specific.
+export function paintDefaultForests(tiles, w, h, forestDef) {
   for (const [fx, fy, fw, fh] of DEFAULT_FORESTS) {
     for (let y = fy; y < fy + fh; y++) {
       for (let x = fx; x < fx + fw; x++) {
         if (x < 0 || y < 0 || x >= w || y >= h) continue;
         const t = tiles[y][x];
         t.type = 'forest';
-        t.wood = woodPerTile;
+        t.resource = forestDef.resource;
+        t.amount = forestDef.amount;
       }
     }
   }

@@ -2,22 +2,30 @@
  * Game balance constants. Pure data — no behavior, no state.
  *
  * @typedef {Object} UnitDef
+ * @property {'worker'|'melee'|'ranged'} role  - per-tick behaviour handler (units/index.js dispatch)
+ * @property {string} shape      - render shape id (render/sprites.js)
  * @property {number} hp
  * @property {number} dmg
  * @property {number} range
  * @property {number} cooldown   - seconds between attacks
  * @property {number} speed      - tiles per second
- * @property {{gold:number}} cost
+ * @property {Object<string,number>} cost  - resource id -> amount
  * @property {number} train      - seconds to train at a building
  * @property {number} [carry]    - peasant carry capacity
- * @property {number} [quiverMax] - archer quiver max
+ * @property {{max:number}} [quiver]  - present => unit carries arrows (factory seeds `arrows`)
+ * @property {string} [requiresResearch] - research id that must be completed to train this unit
  *
  * @typedef {Object} BuildingDef
  * @property {number} hp
  * @property {number} w
  * @property {number} h
- * @property {{gold:number,wood:number}|null} cost
+ * @property {Object<string,number>|null} cost  - resource id -> amount
  * @property {string[]} trains
+ * @property {string} fill       - render fill colour (render/sprites.js)
+ * @property {string} label      - HUD/render label
+ * @property {string[]} [researches] - research ids hosted at this building
+ * @property {string} [requiresResearch] - research id that must be completed to build this
+ * @property {{resource:string,amount:number}} [node] - resource node payload (e.g. gold mine)
  * @property {number} [woodCap]
  * @property {number} [arrowCap]
  * @property {number} [arrowTime]
@@ -30,11 +38,37 @@
  * @property {Object<string,string>} colors
  * @property {Object<string,UnitDef>} unit
  * @property {Object<string,BuildingDef>} building
- * @property {{forestWood:number,goldPerMine:number,gatherTime:number,gatherAmount:number}} resources
+ * @property {{gatherTime:number,gatherAmount:number}} resources
+ * @property {Object<string,ResourceDef>} resourceTypes
+ * @property {Object<string,{resource:string,amount:number}>} tiles  - gatherable tile types
+ * @property {Object<string,ResearchDef>} research
  * @property {number} arrowSpeed
  * @property {number} tickRate
  * @property {{decideEvery:number,microEvery:number,minPeasants:number,armyThreshold:number,waveCooldown:number,def:Object,shared:Object,fsm:Object,utility:Object}} ai
- * @property {{gold:number,wood:number}} startResources
+ * @property {Object<string,number>} startResources  - resource id -> starting amount
+ *
+ * @typedef {Object} ResourceDef
+ * @property {boolean} treasury  - true if stockpiled in the player treasury and spendable on costs
+ * @property {string} label      - HUD display label
+ * @property {{kind:'node',building:string}|{kind:'tile',tile:string}} source
+ *   Where peasants gather it from: a building node (e.g. goldMine) or a map tile type (e.g. forest).
+ *
+ * @typedef {Object} ResearchEffect
+ * @property {'stat'|'unlock'|'ability'} type
+ * @property {'unit'} [target]   - 'stat' effects: which def family the effect applies to
+ * @property {string} [kind]     - 'stat'/'unlock' effects: target unit/building kind
+ * @property {string} [stat]     - 'stat' effects: stat name (dmg, range, ...)
+ * @property {number} [add]      - 'stat' effects: flat modifier
+ * @property {number} [mult]     - 'stat' effects: multiplicative modifier
+ * @property {'unit'|'building'} [what]  - 'unlock' effects: family of the unlocked kind
+ *
+ * @typedef {Object} ResearchDef
+ * @property {Object<string,number>} cost  - resource id -> amount
+ * @property {number} time          - seconds to research at the host building
+ * @property {string[]} requires    - prerequisite research ids (all must be completed)
+ * @property {string} researchedAt  - building kind that hosts this research
+ * @property {string} label         - HUD display label
+ * @property {ResearchEffect[]} effects
  */
 
 /** @type {GameConfig} */
@@ -60,25 +94,59 @@ export const CONFIG = {
   },
 
   unit: {
-    peasant:   { hp: 25, dmg: 2,  range: 1, cooldown: 1.0, speed: 2.2, cost: { gold: 50 },  train: 5,  carry: 5 },
-    swordsman: { hp: 60, dmg: 8,  range: 1, cooldown: 1.0, speed: 2.0, cost: { gold: 80 },  train: 8 },
-    archer:    { hp: 35, dmg: 6,  range: 6, cooldown: 1.2, speed: 2.0, cost: { gold: 70 },  train: 8, quiverMax: 10 },
+    peasant:   { role: 'worker', shape: 'circle',   hp: 25, dmg: 2, range: 1, cooldown: 1.0, speed: 2.2, cost: { gold: 50 }, train: 5, carry: 5 },
+    swordsman: { role: 'melee',  shape: 'square',   hp: 60, dmg: 8, range: 1, cooldown: 1.0, speed: 2.0, cost: { gold: 80 }, train: 8 },
+    archer:    { role: 'ranged', shape: 'triangle', hp: 35, dmg: 6, range: 6, cooldown: 1.2, speed: 2.0, cost: { gold: 70 }, train: 8, quiver: { max: 10 } },
   },
 
   building: {
-    townHall:      { hp: 400, w: 3, h: 3, cost: null,                  trains: ['peasant'] },
-    barracks:      { hp: 250, w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['swordsman'] },
-    archeryRange:  { hp: 220, w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['archer'] },
-    arrowBuilding: { hp: 180, w: 2, h: 2, cost: { gold: 100, wood: 150 }, trains: [], woodCap: 20, arrowCap: 30, arrowTime: 1.5, woodPerArrow: 1 },
-    tower:         { hp: 250, w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], garrisonMax: 4, rangeMult: 1.5, dmgMult: 2, arrowCap: 20, distributeTime: 0.25 },
-    goldMine:      { hp: 1000, w: 2, h: 2, cost: null, trains: [] },
+    townHall:      { hp: 400,  w: 3, h: 3, cost: null,                    trains: ['peasant'],   fill: '#7a5c2e', label: 'TH' },
+    barracks:      { hp: 250,  w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['swordsman'], fill: '#5e3b2a', label: 'Barracks' },
+    archeryRange:  { hp: 220,  w: 2, h: 2, cost: { gold: 200, wood: 100 }, trains: ['archer'],    fill: '#3b5e2a', label: 'Archery' },
+    arrowBuilding: { hp: 180,  w: 2, h: 2, cost: { gold: 100, wood: 150 }, trains: [], fill: '#8a7a3a', label: 'Arrow', woodCap: 20, arrowCap: 30, arrowTime: 1.5, woodPerArrow: 1 },
+    tower:         { hp: 250,  w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], fill: '#6e6e6e', label: 'Tower', garrisonMax: 4, rangeMult: 1.5, dmgMult: 2, arrowCap: 20, distributeTime: 0.25 },
+    blacksmith:    { hp: 200,  w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], fill: '#4a4a6e', label: 'Blacksmith', researches: ['ironWeapons', 'fletching'] },
+    goldMine:      { hp: 1000, w: 2, h: 2, cost: null, trains: [], fill: '#a8862b', label: 'Mine', node: { resource: 'gold', amount: 10000 } },
   },
 
   resources: {
-    forestWood: 100,
-    goldPerMine: 10000,
     gatherTime: 1.0,
     gatherAmount: 5,
+  },
+
+  // Treasury + map-gathered resource definitions. `source` tells the gather
+  // logic where a peasant collects this resource from (see units/logistics.js):
+  //   - 'node' : a building whose def carries a matching `node` payload (goldMine)
+  //   - 'tile' : a map tile type carrying a matching resource (see `tiles` below)
+  // Adding a new treasury resource here flows automatically through the player
+  // bag (game-state.js), cost checks (core/economy.js), and the HUD.
+  resourceTypes: {
+    gold: { treasury: true, label: 'Gold', source: { kind: 'node', building: 'goldMine' } },
+    wood: { treasury: true, label: 'Wood', source: { kind: 'tile', tile: 'forest' } },
+  },
+
+  // Gatherable map tile types: tile type id -> { resource, amount } the tile yields.
+  // A peasant gathering from a tile reads `tile.resource`/`tile.amount` (set at map
+  // build time, see map/grid.js). Non-gatherable tiles (grass, blocked) are omitted.
+  tiles: {
+    forest: { resource: 'wood', amount: 100 },
+  },
+
+  // Research / upgrade tree. Each entry is researched at its `researchedAt` building
+  // (queued via the 'research' command) and, once complete, applies its `effects` to
+  // the owning player. Starter content — extend or replace freely; the subsystem
+  // (commands/research.js, core/research.js, core/stats.js) is fully data-driven.
+  research: {
+    ironWeapons: {
+      cost: { gold: 150 }, time: 25, requires: [], researchedAt: 'blacksmith',
+      label: 'Iron Weapons',
+      effects: [{ type: 'stat', target: 'unit', kind: 'swordsman', stat: 'dmg', add: 3 }],
+    },
+    fletching: {
+      cost: { gold: 120, wood: 60 }, time: 25, requires: [], researchedAt: 'blacksmith',
+      label: 'Fletching',
+      effects: [{ type: 'stat', target: 'unit', kind: 'archer', stat: 'dmg', add: 2 }],
+    },
   },
 
   arrowSpeed: 12,

@@ -18,6 +18,7 @@
 import { CONFIG }              from '../core/config.js';
 import { createSimWorld, spawnInitial, submitCommand, stepTick, TICK_DT } from '../sim/index.js';
 import { createClientState }   from './client-state.js';
+import { buildHudDom }         from './hud-dom.js';
 import { createLocalTransport } from '../transport/local.js';
 import { createNetTransport }   from '../transport/net.js';
 import { createRender }        from '../modules/render/index.js';
@@ -34,6 +35,10 @@ export function startClient() {
 
   const sim    = createSimWorld(CONFIG);
   const client = createClientState();
+
+  // Generate the data-driven HUD DOM (resource row + build/train/research menus)
+  // before input handlers bind to the buttons.
+  buildHudDom(sim.config);
 
   if (isMP) {
     // Invariant: in MP, AI runs ONLY on the server (and currently is unused

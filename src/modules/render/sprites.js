@@ -9,29 +9,20 @@ export function ownerColor(owner, light, colors) {
   return '#aaa';
 }
 
-export function buildingLabel(b) {
-  if (b.kind === 'arrowBuilding') return `Arrow ${b.wood}w/${b.arrows}a`;
-  if (b.kind === 'goldMine')      return `Mine ${b.gold}`;
-  if (b.kind === 'townHall')      return 'TH';
-  if (b.kind === 'barracks')      return 'Barracks';
-  if (b.kind === 'archeryRange')  return 'Archery';
-  if (b.kind === 'tower')         return `Tower ${b.garrisonIds.length}/4`;
-  return b.kind;
+export function buildingLabel(b, config) {
+  // Static base label comes from the def; buildings with live state append it.
+  const base = config.building[b.kind]?.label || b.kind;
+  if (b.kind === 'arrowBuilding') return `${base} ${b.wood}w/${b.arrows}a`;
+  if (b.kind === 'goldMine')      return `${base} ${b.gold}`;
+  if (b.kind === 'tower')         return `${base} ${b.garrisonIds.length}/${config.building.tower.garrisonMax}`;
+  return base;
 }
-
-const FILL_BY_KIND = {
-  townHall:      '#7a5c2e',
-  barracks:      '#5e3b2a',
-  archeryRange:  '#3b5e2a',
-  arrowBuilding: '#8a7a3a',
-  tower:         '#6e6e6e',
-};
 
 export function drawBuilding(ctx, b, config, selectedIdSet) {
   const tile = config.tile;
   const x = b.tileX * tile, y = b.tileY * tile;
   const w = b.w * tile,     h = b.h * tile;
-  const fill = b.kind === 'goldMine' ? config.colors.goldmine : (FILL_BY_KIND[b.kind] || '#555');
+  const fill = config.building[b.kind]?.fill || '#555';
   ctx.fillStyle = fill;
   ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
   ctx.strokeStyle = ownerColor(b.owner, false, config.colors);
@@ -46,22 +37,25 @@ export function drawBuilding(ctx, b, config, selectedIdSet) {
   ctx.fillStyle = '#fff';
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(buildingLabel(b), x + w / 2, y + 14);
+  ctx.fillText(buildingLabel(b, config), x + w / 2, y + 14);
 }
 
-function drawUnitShape(ctx, kind, cx, cy, r) {
-  if (kind === 'peasant') {
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  } else if (kind === 'swordsman') {
+// Draws by the def-declared `shape` (config.unit[kind].shape). A new unit picks an
+// existing shape for free; a genuinely new silhouette adds one branch here.
+function drawUnitShape(ctx, kind, cx, cy, r, config) {
+  const shape = config.unit[kind]?.shape || 'circle';
+  if (shape === 'square') {
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     ctx.strokeRect(cx - r, cy - r, r * 2, r * 2);
-  } else if (kind === 'archer') {
+  } else if (shape === 'triangle') {
     ctx.beginPath();
     ctx.moveTo(cx, cy - r);
     ctx.lineTo(cx + r, cy + r);
     ctx.lineTo(cx - r, cy + r);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   }
 }
 
@@ -96,7 +90,7 @@ function drawUnitAt(ctx, u, cx, cy, r, config, selectedIdSet) {
   ctx.fillStyle = ownerColor(u.owner, dim, config.colors);
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
-  drawUnitShape(ctx, u.kind, cx, cy, r);
+  drawUnitShape(ctx, u.kind, cx, cy, r, config);
   if (selectedIdSet.has(u.id)) {
     ctx.strokeStyle = config.colors.select;
     ctx.lineWidth = 2;
@@ -166,7 +160,7 @@ export function drawUnitStack(ctx, group, config, selectedIdSet) {
   ctx.fillStyle = ownerColor(owner, dim, config.colors);
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
-  drawUnitShape(ctx, kind, rep.x, rep.y, r);
+  drawUnitShape(ctx, kind, rep.x, rep.y, r, config);
 
   if (selectedCount > 0) {
     ctx.strokeStyle = config.colors.select;

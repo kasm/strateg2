@@ -3,6 +3,9 @@
 // Shape:
 //   { type:'build', playerId, tick, seq, kind:'barracks'|'archeryRange'|'arrowBuilding'|'tower', tileX, tileY }
 
+import { canAfford, spend } from '../core/economy.js';
+import { isUnlocked } from '../core/research.js';
+
 export function validateBuild(deps, cmd) {
   const { config, map, state } = deps;
   const def = config.building[cmd.kind];
@@ -15,7 +18,10 @@ export function validateBuild(deps, cmd) {
   }
   const me = state.players[cmd.playerId];
   if (!me) return { ok: false, reason: 'no player' };
-  if (me.gold < def.cost.gold || me.wood < def.cost.wood) {
+  if (!isUnlocked(state, cmd.playerId, def)) {
+    return { ok: false, reason: 'not researched' };
+  }
+  if (!canAfford(me, def.cost)) {
     return { ok: false, reason: 'cant afford' };
   }
   return { ok: true };
@@ -25,7 +31,6 @@ export function applyBuild(deps, cmd) {
   const { config, state, entities } = deps;
   const def = config.building[cmd.kind];
   const me = state.players[cmd.playerId];
-  me.gold -= def.cost.gold;
-  me.wood -= def.cost.wood;
+  spend(me, def.cost);
   entities.makeBuilding(cmd.kind, cmd.playerId, cmd.tileX, cmd.tileY);
 }

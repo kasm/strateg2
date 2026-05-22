@@ -26,7 +26,7 @@ for (const aiType of COMPLEX_AIS) {
       w.state.players.red.wood = 0;
       step(w);
       const peasants = w.entities.unitsOf('red').filter(p => p.kind === 'peasant');
-      const assigned = peasants.filter(p => p.job === 'gatherGold' || p.job === 'gatherWood');
+      const assigned = peasants.filter(p => p.job === 'gather');
       expect(assigned.length).toBe(peasants.length);
     });
 
@@ -186,6 +186,6 @@ describe('AI orchestrator — micro sub-tick', () => {
     w.ai.resetAI();
     expect(() => step(w)).not.toThrow();
     const peasants = w.entities.unitsOf('red').filter(p => p.kind === 'peasant');
-    expect(peasants.some(p => p.job === 'gatherGold' || p.job === 'gatherWood')).toBe(true);
+    expect(peasants.some(p => p.job === 'gather')).toBe(true);
   });
 });
