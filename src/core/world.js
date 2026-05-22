@@ -12,6 +12,7 @@ import { createCombat }      from '../modules/combat/index.js';
 import { createUnits }       from '../modules/units/index.js';
 import { createAI }          from '../modules/ai/index.js';
 import { createCommands }    from '../commands/index.js';
+import { createRecorder }    from '../replay/recorder.js';
 
 /**
  * @typedef {Object} SimWorld
@@ -24,6 +25,7 @@ import { createCommands }    from '../commands/index.js';
  * @property {import('../modules/combat/index.js').CombatModule} combat
  * @property {import('../modules/ai/index.js').AIModule} ai
  * @property {import('../commands/index.js').CommandsModule} commands
+ * @property {import('../replay/recorder.js').Recorder} recorder
  */
 
 /**
@@ -40,10 +42,13 @@ export function createWorld(config) {
   const units       = createUnits({ state, config, map, pathfinding, entities, combat });
   // Resolve the units <-> combat cycle: combat's melee/archer steps need movement helpers.
   combat.attachUnits(units);
+  // Replay recorder — captures every applied command so a match can be
+  // reconstructed deterministically (see src/replay/). Always on; cheap.
+  const recorder    = createRecorder();
   // Command dispatcher — the only mutator of sim state outside the per-tick steps.
   // Drained at the start of every tick (see core/game-loop.js).
-  const commands    = createCommands({ state, config, map, entities, units, pathfinding });
+  const commands    = createCommands({ state, config, map, entities, units, pathfinding, recorder });
   const ai          = createAI({ state, config, entities, map, commands });
 
-  return { state, config, map, pathfinding, entities, units, combat, ai, commands };
+  return { state, config, map, pathfinding, entities, units, combat, ai, commands, recorder };
 }

@@ -18,10 +18,11 @@ import { validateBuild, applyBuild } from './build.js';
 import { validateTrain, applyTrain } from './train.js';
 import { validateEject, applyEject } from './eject.js';
 import { validateRestart, applyRestart } from './restart.js';
+import { validateSetOption, applySetOption } from './set-option.js';
 
 /**
  * @typedef {Object} Command
- * @property {'order'|'build'|'train'|'eject'|'restart'} type
+ * @property {'order'|'build'|'train'|'eject'|'restart'|'setOption'} type
  * @property {string} playerId    - 'red' | 'blue' (or future bot id)
  * @property {number} [tick]      - filled by submit() if absent; tick the cmd applies at
  * @property {number} [seq]       - filled by submit() if absent; monotonic per-player counter
@@ -37,11 +38,12 @@ import { validateRestart, applyRestart } from './restart.js';
  */
 
 const DEFS = {
-  order:   { validate: validateOrder,   apply: applyOrder   },
-  build:   { validate: validateBuild,   apply: applyBuild   },
-  train:   { validate: validateTrain,   apply: applyTrain   },
-  eject:   { validate: validateEject,   apply: applyEject   },
-  restart: { validate: validateRestart, apply: applyRestart },
+  order:     { validate: validateOrder,     apply: applyOrder     },
+  build:     { validate: validateBuild,     apply: applyBuild     },
+  train:     { validate: validateTrain,     apply: applyTrain     },
+  eject:     { validate: validateEject,     apply: applyEject     },
+  restart:   { validate: validateRestart,   apply: applyRestart   },
+  setOption: { validate: validateSetOption, apply: applySetOption },
 };
 
 /**
@@ -52,6 +54,7 @@ const DEFS = {
  *   entities:     import('../modules/entities/index.js').EntitiesModule,
  *   units:        import('../modules/units/index.js').UnitsModule,
  *   pathfinding:  import('../modules/pathfinding/index.js').Pathfinding,
+ *   recorder?:    import('../replay/recorder.js').Recorder,
  * }} deps
  * @returns {CommandsModule}
  */
@@ -84,6 +87,10 @@ export function createCommands(deps) {
       const v = def.validate(deps, cmd);
       if (!v.ok) continue;
       def.apply(deps, cmd);
+      // Record only applied commands — invalid ones never touched state, and a
+      // replay re-validates anyway. apply() runs first so a 'restart' has reset
+      // the recorder before its own command would be (and is) skipped.
+      deps.recorder?.record(cmd);
     }
     queue.length = 0;
   }

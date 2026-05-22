@@ -11,8 +11,8 @@ describe('world + game-loop smoke', () => {
   it('createWorld returns the full module graph', () => {
     const w = createWorld(CONFIG);
     expect(Object.keys(w).sort()).toEqual([
-      'ai', 'combat', 'config', 'entities', 'input', 'map',
-      'pathfinding', 'render', 'state', 'units',
+      'ai', 'combat', 'commands', 'config', 'entities', 'map',
+      'pathfinding', 'recorder', 'state', 'units',
     ]);
   });
 

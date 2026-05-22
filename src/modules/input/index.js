@@ -1,12 +1,16 @@
 // PUBLIC API of the input module.
 // Owns the canvas listeners and HUD button bindings, exposes the drag-rect for render to draw.
 //
-// All in-game actions (orders, builds, training, tower eject) are submitted as commands
-// via `transport.submit(...)`. This module never mutates entity state directly — only
-// client-local UI state (selection, build-mode, hover, option toggles) is set inline.
+// All in-game actions (orders, builds, training, tower eject) and sim-affecting
+// settings (alwaysHit, supplyPriority) are submitted as commands via
+// `transport.submit(...)`. This module never mutates sim state directly — only
+// client-local UI state (selection, build-mode, hover, stackMode) is set inline.
 //
-// Selection/buildMode/trainFromId/hoverTile/stackMode live on clientState; sim state holds
-// game settings (alwaysHit, aiType, supplyPriority) that the simulation reads each tick.
+// Selection/buildMode/trainFromId/hoverTile/stackMode live on clientState. The
+// alwaysHit / supplyPriority toggles go through a `setOption` command so they
+// land in the deterministic command stream (replay-safe; no MP desync). aiType
+// stays a direct write — it only picks which AI emits commands, and those
+// commands are themselves recorded.
 
 import { bindMouse } from './mouse.js';
 
@@ -101,7 +105,12 @@ export function createInput({ state, client, config, map, entities, units, pathf
     const alwaysHitEl = document.getElementById('always-hit');
     if (alwaysHitEl) {
       alwaysHitEl.checked = state.alwaysHit;
-      alwaysHitEl.addEventListener('change', () => { state.alwaysHit = alwaysHitEl.checked; });
+      alwaysHitEl.addEventListener('change', () => {
+        transport.submit({
+          type: 'setOption', playerId: client.playerId,
+          key: 'alwaysHit', value: alwaysHitEl.checked,
+        });
+      });
     }
 
     // Red AI / Blue AI dropdowns — pick which AI (if any) drives each side.
@@ -123,7 +132,12 @@ export function createInput({ state, client, config, map, entities, units, pathf
     const supplyEl = document.getElementById('supply-priority');
     if (supplyEl) {
       supplyEl.value = state.supplyPriority;
-      supplyEl.addEventListener('change', () => { state.supplyPriority = supplyEl.value; });
+      supplyEl.addEventListener('change', () => {
+        transport.submit({
+          type: 'setOption', playerId: client.playerId,
+          key: 'supplyPriority', value: supplyEl.value,
+        });
+      });
     }
 
     if (onRestart) {

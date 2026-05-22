@@ -11,6 +11,9 @@
 // throttle counters are module-local and at worst introduce a small post-restart
 // delay before the first AI decision — acceptable for MVP.
 //
+// It also tells the replay recorder a fresh match started, so the previous
+// game's command log is dropped and a new one begins from tick 0.
+//
 // Determinism: spawnInitial is deterministic (no Math.random anywhere in the sim),
 // so every peer reaches the same post-restart state.
 
@@ -23,4 +26,5 @@ export function validateRestart(deps, cmd) {
 
 export function applyRestart(deps) {
   deps.entities.spawnInitial();
+  deps.recorder?.begin(deps.state);
 }

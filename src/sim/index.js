@@ -23,6 +23,9 @@ export function createSimWorld(config) {
 export function spawnInitial(world) {
   world.entities.spawnInitial();
   world.ai.resetAI();
+  // Start a fresh replay recording — captures setup (alwaysHit, supplyPriority,
+  // aiType) as it stands at tick 0, then logs every command from here.
+  world.recorder.begin(world.state);
 }
 
 /**

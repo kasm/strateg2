@@ -28,6 +28,9 @@ export function tick(w, dt) {
   w.combat.updateBuildings(dt);
   w.entities.pruneDead();
   checkVictory(w);
+  // Freeze the replay the instant a side wins, so post-gameOver input (the
+  // overlay is up but units are still clickable) never pollutes the recording.
+  if (w.state.gameOver) w.recorder?.finish(w.state);
 }
 
 function checkVictory(w) {

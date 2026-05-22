@@ -94,6 +94,20 @@ export function startClient() {
     input.refreshTrainMenu();
   }
 
+  function downloadReplay() {
+    // Serialize the recorded match to an open JSON replay file (see
+    // docs/replay-format.md) and hand it to the browser as a download.
+    const replay = sim.recorder.toReplay(sim.state);
+    const json   = JSON.stringify(replay);
+    const stamp  = (replay.recordedAt || new Date().toISOString()).replace(/[:.]/g, '-');
+    const url    = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a      = document.createElement('a');
+    a.href = url;
+    a.download = `strateg2-replay-${replay.result.winner || 'partial'}-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const input = createInput({
     state:       sim.state,
     client,
@@ -127,6 +141,9 @@ export function startClient() {
   render.initRender();
   input.refreshBuildButtons();
   input.refreshTrainMenu();
+
+  const downloadBtn = document.getElementById('download-replay');
+  if (downloadBtn) downloadBtn.addEventListener('click', downloadReplay);
 
   let overlayShown = false;
 
