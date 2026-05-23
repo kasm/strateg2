@@ -1,16 +1,38 @@
 // Internal: per-frame scene composition (tiles, buildings, units, projectiles, overlays).
+//
+// Coordinate handling: drawing happens inside a `ctx.save() / scale() / translate()`
+// block keyed off `client.camera`. The block converts SIM-PX to SCREEN-PX so sprite
+// code below this layer keeps using `config.tile` and `entity.x/.y` unchanged.
+// Screen-space overlays (drag-select rectangle) draw after `ctx.restore()`.
 
 import { drawBuilding, drawUnit, drawUnitStack, drawUnitSpread } from './sprites.js';
 import { canAfford } from '../../core/economy.js';
 
 export function drawScene(ctx, { state, client, config, map, getDragRect, selectedIdSet }) {
   const tile = config.tile;
+  const cam  = client.camera;
+  const canvasW = cam.canvasW, canvasH = cam.canvasH;
 
-  ctx.clearRect(0, 0, map.w * tile, map.h * tile);
+  // Background fill in raw screen space — covers any area outside the map at extreme zooms.
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  ctx.save();
+  const scale = cam.tilePx / tile;
+  ctx.scale(scale, scale);
+  ctx.translate(-cam.tileX * tile, -cam.tileY * tile);
+
+  // Visible tile range — skip rows/cols off-screen so render cost scales with the
+  // viewport, not the whole map.
+  const vis = cam.visibleTiles();
+  const x0 = Math.max(0, Math.floor(cam.tileX));
+  const y0 = Math.max(0, Math.floor(cam.tileY));
+  const x1 = Math.min(map.w, Math.ceil(cam.tileX + vis.w));
+  const y1 = Math.min(map.h, Math.ceil(cam.tileY + vis.h));
 
   // Tiles
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) {
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
       const t = map.tiles[y][x];
       let c = config.colors.grass;
       if      (t.type === 'forest')   c = config.colors.forest;
@@ -23,12 +45,12 @@ export function drawScene(ctx, { state, client, config, map, getDragRect, select
 
   // Grid lines
   ctx.strokeStyle = config.colors.grid;
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= map.w; x++) {
-    ctx.beginPath(); ctx.moveTo(x * tile, 0); ctx.lineTo(x * tile, map.h * tile); ctx.stroke();
+  ctx.lineWidth = 1 / scale;
+  for (let x = x0; x <= x1; x++) {
+    ctx.beginPath(); ctx.moveTo(x * tile, y0 * tile); ctx.lineTo(x * tile, y1 * tile); ctx.stroke();
   }
-  for (let y = 0; y <= map.h; y++) {
-    ctx.beginPath(); ctx.moveTo(0, y * tile); ctx.lineTo(map.w * tile, y * tile); ctx.stroke();
+  for (let y = y0; y <= y1; y++) {
+    ctx.beginPath(); ctx.moveTo(x0 * tile, y * tile); ctx.lineTo(x1 * tile, y * tile); ctx.stroke();
   }
 
   // Buildings (under units)
@@ -70,7 +92,9 @@ export function drawScene(ctx, { state, client, config, map, getDragRect, select
     ctx.globalAlpha = 1;
   }
 
-  // Drag-box overlay
+  ctx.restore();
+
+  // Drag-box overlay — drawn in raw screen space (drag rect is stored in screen px).
   const dr = getDragRect && getDragRect();
   if (dr && (dr.w > 2 || dr.h > 2)) {
     ctx.strokeStyle = '#ffe44a';

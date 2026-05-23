@@ -2,8 +2,10 @@
 // Entity refs in here are IDs (numbers), resolved via entities.byId() at read time.
 //
 // Fields here are pure UX: selection set, building placement mode, the hovered tile,
-// which building's train menu is open, and the stack render mode. None of these are
-// observed by the simulation.
+// which building's train menu is open, the stack render mode, and the viewport
+// camera. None of these are observed by the simulation.
+
+import { createCamera } from './camera.js';
 
 /**
  * @typedef {Object} ClientState
@@ -14,6 +16,7 @@
  * @property {number|null} researchFromId      - building ID whose research menu is open.
  * @property {{x:number,y:number}|null} hoverTile
  * @property {'spread'|'overlap'|'badge'} stackMode
+ * @property {import('./camera.js').Camera} camera  - viewport pan/zoom (render-only)
  */
 
 /** @returns {ClientState} */
@@ -26,6 +29,7 @@ export function createClientState() {
     researchFromId: null,
     hoverTile: null,
     stackMode: 'spread',
+    camera: createCamera({ canvasW: 1152, canvasH: 640, simTile: 32 }),
   };
 }
 

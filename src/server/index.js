@@ -6,13 +6,13 @@
 //
 // Lifecycle (per match):
 //   - Lobby phase: clients connect, pick names, see each other's roster, send
-//     and accept invites. The sim object exists but is dormant — no entities,
-//     no ticks broadcast.
-//   - On accept: lobby.startMatch pairs inviter=red + invitee=blue; sim is
-//     freshly spawned via spawnInitial; relay/serverTick reset; tick loop
-//     starts broadcasting `tick-commands` and stepping the sim.
+//     and accept invites. No sim exists yet — it is built at match start.
+//   - On accept: the inviter's chosen map size is clamped to a known preset,
+//     lobby.startMatch pairs inviter=red + invitee=blue with those dims,
+//     a fresh sim is constructed with those dims, relay/serverTick reset, and
+//     the tick loop starts broadcasting `tick-commands` and stepping the sim.
 //   - Match end (gameOver or disconnect): the pair gets a `match-ended` msg,
-//     lobby returns to vacant, sim sits idle until the next match starts.
+//     lobby returns to vacant, sim is discarded and rebuilt at the next match.
 //
 // Capacity rule: while a match is active, new WS connections are refused with
 // `{type:'full'}` — no spectators, no queueing on top of the active pair.
@@ -23,7 +23,7 @@ import url  from 'node:url';
 import { execFile } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 
-import { CONFIG }                                              from '../core/config.js';
+import { CONFIG, MAP_PRESETS }                                from '../core/config.js';
 import { createSimWorld, spawnInitial, submitCommand, stepTick, TICK_DT } from '../sim/index.js';
 import { createLobby }                                         from './lobby.js';
 import { createRelay }                                         from './relay.js';
@@ -32,28 +32,39 @@ import { createStaticHandler }                                 from './static.js
 const PORT     = Number(process.env.PORT || 4010);
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../..');
 
-const sim   = createSimWorld(CONFIG);
+/** @type {import('../core/world.js').SimWorld|null} */
+let sim = null;
 const lobby = createLobby();
 const relay = createRelay();
 
-// Sim stays dormant until two players agree on a match. aiType is unused
-// (no AI players in this mode), but kept 'off' so any stray AI tick in the sim
-// modules doesn't try to emit commands.
-sim.state.aiType.red  = 'off';
-sim.state.aiType.blue = 'off';
-
-// Wrap commands.submit defensively. In this lobby-gated flow only human-stamped
-// cmds reach the relay (AI is off), but we keep the wrap so future changes that
-// re-enable AI route its commands through the relay rather than the local queue.
-const origSubmit = sim.commands.submit;
-sim.commands.submit = (cmd) => {
-  if (cmd.seq == null) {
-    cmd.seq = relay.stampSeq(cmd.playerId);
-    relay.enqueue(cmd);
-    return;
+// Clamp client-supplied (mapW, mapH) to a known preset; reject otherwise. Server
+// is the trust boundary — a forged invite shouldn't be able to drive a 50000x50000
+// world.
+function dimsAsPreset(mapW, mapH) {
+  for (const def of Object.values(MAP_PRESETS)) {
+    if (def.w === mapW && def.h === mapH) return { mapW: def.w, mapH: def.h };
   }
-  origSubmit.call(sim.commands, cmd);
-};
+  return null;
+}
+
+// Build a fresh sim for the next match. Locks AI off (server flow is human-only)
+// and wraps `commands.submit` so any locally-emitted command is routed through
+// the relay instead of the local queue.
+function buildSim(mapW, mapH) {
+  const w = createSimWorld(CONFIG, { mapW, mapH });
+  w.state.aiType.red  = 'off';
+  w.state.aiType.blue = 'off';
+  const origSubmit = w.commands.submit;
+  w.commands.submit = (cmd) => {
+    if (cmd.seq == null) {
+      cmd.seq = relay.stampSeq(cmd.playerId);
+      relay.enqueue(cmd);
+      return;
+    }
+    origSubmit.call(w.commands, cmd);
+  };
+  return w;
+}
 
 let serverTick = 0;
 
@@ -81,15 +92,22 @@ function broadcastRoster() {
 }
 
 function beginMatch() {
-  // Fresh sim each match. The sim object is reused (so the dispatcher wrap
-  // stays intact), state is reset in place by spawnInitial.
+  const dims = lobby.matchDims();
+  if (!dims) return;
+  sim = buildSim(dims.mapW, dims.mapH);
   spawnInitial(sim);
   relay.reset();
   serverTick = 0;
   const red  = lobby.matchConn('red');
   const blue = lobby.matchConn('blue');
-  send(red,  { type: 'hello', playerId: 'red',  initialAutoFight: { red: false, blue: false } });
-  send(blue, { type: 'hello', playerId: 'blue', initialAutoFight: { red: false, blue: false } });
+  const hello = {
+    type: 'hello',
+    initialAutoFight: { red: false, blue: false },
+    mapW: dims.mapW,
+    mapH: dims.mapH,
+  };
+  send(red,  { ...hello, playerId: 'red'  });
+  send(blue, { ...hello, playerId: 'blue' });
 }
 
 function finishMatch(reason, winner) {
@@ -98,14 +116,13 @@ function finishMatch(reason, winner) {
     send(pair.red,  { type: 'match-ended', reason, winner });
     send(pair.blue, { type: 'match-ended', reason, winner });
   }
-  // Drain any residual relay state and reset tick counter for the next match.
   relay.reset();
   serverTick = 0;
+  sim = null;
   broadcastRoster();
 }
 
 wss.on('connection', (conn) => {
-  // Capacity gate: no spectators while a match is active.
   if (lobby.isMatchFull()) {
     send(conn, { type: 'full' });
     conn.close();
@@ -136,10 +153,16 @@ wss.on('connection', (conn) => {
         const target = lobby.connById(msg.toConnId);
         if (!target || target === conn) return;
         if (lobby.matchSlotFor(target) !== null) return;
+        const dims = dimsAsPreset(msg.mapW, msg.mapH);
+        if (!dims) return; // bad invite — ignore
         const fromConnId = lobby.connIdOf(conn);
         const fromName   = lobby.nameOf(conn);
-        if (!fromName) return; // inviter must have a name
-        send(target, { type: 'invited', fromConnId, fromName });
+        if (!fromName) return;
+        send(target, {
+          type: 'invited',
+          fromConnId, fromName,
+          mapW: dims.mapW, mapH: dims.mapH,
+        });
         return;
       }
       case 'accept-invite': {
@@ -147,7 +170,12 @@ wss.on('connection', (conn) => {
         const inviter = lobby.connById(msg.fromConnId);
         if (!inviter || inviter === conn) return;
         if (!lobby.nameOf(inviter) || !lobby.nameOf(conn)) return;
-        const pair = lobby.startMatch(inviter, conn);
+        const dims = dimsAsPreset(msg.mapW, msg.mapH);
+        if (!dims) {
+          send(conn, { type: 'invite-failed', reason: 'bad-map-size' });
+          return;
+        }
+        const pair = lobby.startMatch(inviter, conn, dims.mapW, dims.mapH);
         if (!pair) {
           send(conn, { type: 'invite-failed', reason: 'unavailable' });
           return;
@@ -166,8 +194,8 @@ wss.on('connection', (conn) => {
       case 'cmd': {
         if (!msg.cmd) return;
         const slot = lobby.matchSlotFor(conn);
-        if (!slot || !lobby.isInMatch()) return;       // not in a match: ignore
-        if (msg.cmd.playerId !== slot) return;          // spoof guard
+        if (!slot || !lobby.isInMatch()) return;
+        if (msg.cmd.playerId !== slot) return;
         msg.cmd.seq = relay.stampSeq(msg.cmd.playerId);
         relay.enqueue(msg.cmd);
         return;
@@ -178,8 +206,6 @@ wss.on('connection', (conn) => {
   });
 
   conn.on('close', () => {
-    // Snapshot the leaver's slot BEFORE removeConn clears the pairing, so we
-    // can tell the survivor who won.
     const leaverSlot = lobby.matchSlotFor(conn);
     conns.delete(conn);
     const res = lobby.removeConn(conn);
@@ -188,16 +214,16 @@ wss.on('connection', (conn) => {
       send(res.opponentConn, { type: 'match-ended', reason: 'opponent-disconnected', winner });
       relay.reset();
       serverTick = 0;
+      sim = null;
     }
     broadcastRoster();
   });
 });
 
 setInterval(() => {
-  if (!lobby.isInMatch()) return;
+  if (!lobby.isInMatch() || !sim) return;
 
-  // 1. Collect everything that accumulated since the last tick (client cmds
-  //    received async + any future AI cmds that route through the relay wrap).
+  // 1. Collect everything that accumulated since the last tick.
   const batch = relay.collectTick(serverTick);
 
   // 2. Broadcast to both peers. Empty batches still drive tick-advance.
@@ -260,7 +286,6 @@ function diagnosePortHolder(port) {
     return run('netstat.exe', ['-ano', '-p', 'TCP']).then(out => {
       const pids = new Set();
       for (const line of out.split(/\r?\n/)) {
-        // Listening rows look like: "  TCP    0.0.0.0:4010   0.0.0.0:0   LISTENING   12345"
         const m = line.match(/\s\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/);
         if (m && Number(m[1]) === port) pids.add(m[2]);
       }
@@ -268,7 +293,6 @@ function diagnosePortHolder(port) {
       return Promise.all([...pids].map(pid => describeWindowsPid(pid, run))).then(rows => rows.join('\n\n'));
     });
   }
-  // macOS / Linux
   return run('lsof', ['-iTCP:' + port, '-sTCP:LISTEN', '-Pn']).then(out => {
     if (!out.trim()) return `  (lsof returned nothing — install lsof or check manually with: ss -lptn 'sport = :${port}')`;
     const pids = new Set();
@@ -281,7 +305,6 @@ function diagnosePortHolder(port) {
 }
 
 function describeWindowsPid(pid, run) {
-  // Single PowerShell call yields image, exe, and full command line.
   const psScript =
     `$ErrorActionPreference='SilentlyContinue';` +
     `$p = Get-CimInstance Win32_Process -Filter "ProcessId=${pid}";` +
@@ -307,7 +330,6 @@ function describePosixPid(pid, run) {
     const psLine = (psOut.split(/\r?\n/)[0] || '').trim();
     const [comm, ...rest] = psLine.split(/\s+/);
     const args = rest.join(' ');
-    // lsof -Fn output is one field per line; the cwd line starts with 'n'.
     const cwdLine = (lsofOut.split(/\r?\n/).find(l => l.startsWith('n')) || '').slice(1);
     return [
       `  PID ${pid}  →  ${comm || '<unknown>'}`,

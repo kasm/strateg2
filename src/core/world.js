@@ -31,11 +31,12 @@ import { createRecorder }    from '../replay/recorder.js';
 /**
  * Build a fully wired headless simulation world.
  * @param {import('./config.js').GameConfig} config
+ * @param {{ mapW?: number, mapH?: number }} [opts]
  * @returns {SimWorld}
  */
-export function createWorld(config) {
+export function createWorld(config, opts = {}) {
   const state       = createGameState(config);
-  const map         = createMap({ config });
+  const map         = createMap({ config, mapW: opts.mapW, mapH: opts.mapH });
   const pathfinding = createPathfinding({ map });
   const entities    = createEntities({ state, config, map, pathfinding });
   const combat      = createCombat({ state, config, map, entities, pathfinding });

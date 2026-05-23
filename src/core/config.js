@@ -198,3 +198,15 @@ export const CONFIG = {
 
   startResources: { gold: 300, wood: 200 },
 };
+
+// Player-selectable map sizes. Server clamps to these keys to refuse forged dims.
+// Adding a preset here flows automatically through the start-game modal, the
+// lobby invite handshake, and the replay format.
+export const MAP_PRESETS = {
+  small:  { label: 'Small (36×20)',   w: 36,  h: 20 },
+  medium: { label: 'Medium (60×40)',  w: 60,  h: 40 },
+  large:  { label: 'Large (96×64)',   w: 96,  h: 64 },
+  huge:   { label: 'Huge (128×80)',   w: 128, h: 80 },
+};
+
+export const DEFAULT_MAP_PRESET = 'medium';

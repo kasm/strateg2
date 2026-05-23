@@ -71,13 +71,14 @@ export function createEntities({ state, config, map, pathfinding }) {
       seedResearch(state.players[side], config);
     }
 
-    makeBuilding('goldMine', 'neutral', 4, 9);
-    makeBuilding('goldMine', 'neutral', config.mapW - 6, 9);
-    makeBuilding('townHall', 'red', 1, 8);
-    makeBuilding('townHall', 'blue', config.mapW - 4, 8);
+    const yMid = Math.floor(map.h / 2);
+    makeBuilding('goldMine', 'neutral', 4, yMid - 1);
+    makeBuilding('goldMine', 'neutral', map.w - 6, yMid - 1);
+    makeBuilding('townHall', 'red', 1, yMid - 2);
+    makeBuilding('townHall', 'blue', map.w - 4, yMid - 2);
     for (let i = 0; i < 3; i++) {
-      makeUnit('peasant', 'red', 5 + i, 11);
-      makeUnit('peasant', 'blue', config.mapW - 6 - i, 11);
+      makeUnit('peasant', 'red', 5 + i, yMid + 1);
+      makeUnit('peasant', 'blue', map.w - 6 - i, yMid + 1);
     }
   }
 

@@ -5,18 +5,19 @@
 //   server -> client: { type:'players',        list:[{connId,name}] }
 //   server -> client: { type:'name-accepted',  name }
 //   server -> client: { type:'name-rejected',  reason }
-//   server -> client: { type:'invited',        fromConnId, fromName }
+//   server -> client: { type:'invited',        fromConnId, fromName, mapW, mapH }
 //   server -> client: { type:'invite-declined',byConnId }
 //   server -> client: { type:'invite-failed',  reason }
-//   server -> client: { type:'hello',          playerId, initialAutoFight }  (match-start)
+//   server -> client: { type:'hello',          playerId, initialAutoFight, mapW, mapH }
+//                                                                 (match-start)
 //   server -> client: { type:'tick-commands',  tick, commands:Command[] }
 //   server -> client: { type:'match-ended',    reason, winner }
 //   server -> client: { type:'full' }
 //   server -> client: { type:'snapshot',       snapshot }                    (reserved)
 //
 //   client -> server: { type:'set-name',       name }
-//   client -> server: { type:'invite',         toConnId }
-//   client -> server: { type:'accept-invite',  fromConnId }
+//   client -> server: { type:'invite',         toConnId, mapW, mapH }
+//   client -> server: { type:'accept-invite',  fromConnId, mapW, mapH }
 //   client -> server: { type:'decline-invite', fromConnId }
 //   client -> server: { type:'cmd',            cmd:Command (unstamped seq/tick) }
 //
@@ -33,12 +34,12 @@
 /**
  * @param {string} url
  * @param {{
- *   onAssign?:         (msg:{playerId:'red'|'blue', initialAutoFight:{red:boolean,blue:boolean}}) => void,
+ *   onAssign?:         (msg:{playerId:'red'|'blue', initialAutoFight:{red:boolean,blue:boolean}, mapW:number, mapH:number}) => void,
  *   onLobbyHello?:     (msg:{connId:string}) => void,
  *   onPlayers?:        (list:Array<{connId:string,name:string}>) => void,
  *   onNameAccepted?:   (msg:{name:string}) => void,
  *   onNameRejected?:   (msg:{reason:string}) => void,
- *   onInvited?:        (msg:{fromConnId:string,fromName:string}) => void,
+ *   onInvited?:        (msg:{fromConnId:string,fromName:string,mapW:number,mapH:number}) => void,
  *   onInviteDeclined?: (msg:{byConnId:string}) => void,
  *   onInviteFailed?:   (msg:{reason:string}) => void,
  *   onMatchEnded?:     (msg:{reason:string, winner:'red'|'blue'|null}) => void,
@@ -48,8 +49,8 @@
  * }} [opts]
  * @returns {Transport & {
  *   setName:        (name:string) => void,
- *   invite:         (toConnId:string) => void,
- *   acceptInvite:   (fromConnId:string) => void,
+ *   invite:         (toConnId:string, mapW:number, mapH:number) => void,
+ *   acceptInvite:   (fromConnId:string, mapW:number, mapH:number) => void,
  *   declineInvite:  (fromConnId:string) => void,
  * }}
  */
@@ -90,7 +91,12 @@ export function createNetTransport(url, opts = {}) {
     try { msg = JSON.parse(ev.data); } catch { return; }
     switch (msg.type) {
       case 'hello':
-        onAssign({ playerId: msg.playerId, initialAutoFight: msg.initialAutoFight });
+        onAssign({
+          playerId: msg.playerId,
+          initialAutoFight: msg.initialAutoFight,
+          mapW: msg.mapW,
+          mapH: msg.mapH,
+        });
         break;
       case 'lobby-hello':
         onLobbyHello({ connId: msg.connId });
@@ -105,7 +111,12 @@ export function createNetTransport(url, opts = {}) {
         onNameRejected({ reason: msg.reason });
         break;
       case 'invited':
-        onInvited({ fromConnId: msg.fromConnId, fromName: msg.fromName });
+        onInvited({
+          fromConnId: msg.fromConnId,
+          fromName:   msg.fromName,
+          mapW:       msg.mapW,
+          mapH:       msg.mapH,
+        });
         break;
       case 'invite-declined':
         onInviteDeclined({ byConnId: msg.byConnId });
@@ -137,8 +148,12 @@ export function createNetTransport(url, opts = {}) {
     onSnapshot(cb)        { snapshotCb        = cb; },
     onCommandsForTick(cb) { commandsForTickCb = cb; },
     setName(name)         { sendOrQueue({ type: 'set-name',       name }); },
-    invite(toConnId)      { sendOrQueue({ type: 'invite',         toConnId }); },
-    acceptInvite(fromConnId)  { sendOrQueue({ type: 'accept-invite',  fromConnId }); },
+    invite(toConnId, mapW, mapH) {
+      sendOrQueue({ type: 'invite', toConnId, mapW, mapH });
+    },
+    acceptInvite(fromConnId, mapW, mapH) {
+      sendOrQueue({ type: 'accept-invite', fromConnId, mapW, mapH });
+    },
     declineInvite(fromConnId) { sendOrQueue({ type: 'decline-invite', fromConnId }); },
   };
 }

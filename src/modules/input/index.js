@@ -13,6 +13,7 @@
 // commands are themselves recorded.
 
 import { bindMouse } from './mouse.js';
+import { createKeyboard } from './keyboard.js';
 
 /**
  * @typedef {Object} InputModule
@@ -21,6 +22,8 @@ import { bindMouse } from './mouse.js';
  * @property {() => void} refreshTrainMenu
  * @property {() => ({x:number,y:number,w:number,h:number}|null)} getDragRect
  *   For render: the active drag-select rectangle, or null when not dragging.
+ * @property {(dt:number) => void} tickPan
+ *   Per-frame: applies held-key + edge-scroll camera pan. Called from the RAF loop.
  */
 
 /**
@@ -41,6 +44,9 @@ import { bindMouse } from './mouse.js';
 export function createInput({ state, client, config, map, entities, units, pathfinding, transport, isMP, onRestart }) {
   const mouse = { x: 0, y: 0, dragStart: null, dragRect: null };
   const deps = { state, client, config, map, entities, units, pathfinding, transport };
+  const keyboard = createKeyboard(client);
+  /** @type {{tickPan:(dt:number)=>void}|null} */
+  let mouseHandlers = null;
 
   function refreshBuildButtons() {
     document.querySelectorAll('#build-menu button').forEach(btn => {
@@ -107,7 +113,8 @@ export function createInput({ state, client, config, map, entities, units, pathf
 
   function initInput() {
     const canvas = document.getElementById('canvas');
-    bindMouse(canvas, mouse, deps, refreshTrainMenu);
+    mouseHandlers = bindMouse(canvas, mouse, deps, refreshTrainMenu);
+    keyboard.init();
 
     document.querySelectorAll('#build-menu button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -198,10 +205,16 @@ export function createInput({ state, client, config, map, entities, units, pathf
     }
   }
 
+  function tickPan(dt) {
+    keyboard.tickPan(dt);
+    if (mouseHandlers) mouseHandlers.tickPan(dt);
+  }
+
   return {
     initInput,
     refreshBuildButtons,
     refreshTrainMenu,
     getDragRect: () => mouse.dragRect,
+    tickPan,
   };
 }

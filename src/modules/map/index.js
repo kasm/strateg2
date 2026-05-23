@@ -25,12 +25,16 @@ import { buildEmptyGrid, paintDefaultForests } from './grid.js';
  */
 
 /**
- * @param {{ config: import('../../core/config.js').GameConfig }} deps
+ * @param {{
+ *   config: import('../../core/config.js').GameConfig,
+ *   mapW?: number,
+ *   mapH?: number,
+ * }} deps
  * @returns {MapModule}
  */
-export function createMap({ config }) {
-  const w = config.mapW;
-  const h = config.mapH;
+export function createMap({ config, mapW, mapH }) {
+  const w = mapW ?? config.mapW;
+  const h = mapH ?? config.mapH;
 
   // Tiles are mutable; we expose the array but mutate in place so existing references stay valid.
   const state = { tiles: buildEmptyGrid(w, h) };

@@ -10,6 +10,7 @@
     <canvas id="canvas" width="1152" height="640"></canvas>
     <div id="hud">
       <!-- Resource row + action menus are generated from config by client/hud-dom.js. -->
+      <canvas id="minimap" width="240" height="160" style="display:none"></canvas>
       <div id="resources"></div>
       <div id="build-menu"></div>
       <div id="train-menu" style="display:none"></div>
@@ -17,6 +18,9 @@
       <div id="lobby-players-panel" style="display:none">
         <div class="lobby-section-title">Players online</div>
         <div id="lobby-self"></div>
+        <label class="lobby-map-size">Map size:
+          <select id="lobby-map-size"></select>
+        </label>
         <ul id="lobby-players"></ul>
         <div id="lobby-status-msg"></div>
       </div>
@@ -65,6 +69,13 @@
       <div id="game-over-text"></div>
       <button id="download-replay">Download replay</button>
       <button id="restart">Restart</button>
+    </div>
+    <div id="start-game-modal" style="display:none">
+      <div class="lobby-modal-title">New game</div>
+      <label class="lobby-map-size">Map size:
+        <select id="start-game-map-size"></select>
+      </label>
+      <button id="start-game-submit">Start</button>
     </div>
     <div id="lobby-name-modal" style="display:none">
       <div class="lobby-modal-title">Enter your name</div>

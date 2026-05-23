@@ -40,15 +40,19 @@ export function createRecorder() {
   /**
    * Snapshot the tick-0 reconstruction inputs and start a new log.
    * `alwaysHit` / `supplyPriority` are captured here because reconstruction must
-   * restore them before tick 0. `aiType` is NOT — it is read at toReplay() time
-   * instead: the HUD dropdowns are usually set just after spawnInitial, so the
-   * begin-time value is still the default and would mislabel the replay.
+   * restore them before tick 0. `mapW` / `mapH` are captured so a non-default
+   * map size reconstructs to the same dims (createSimWorld is dim-parameterised).
+   * `aiType` is NOT captured here — it is read at toReplay() time instead: the
+   * HUD dropdowns are usually set just after spawnInitial, so the begin-time
+   * value is still the default and would mislabel the replay.
    */
-  function begin(state) {
+  function begin(state, mapW, mapH) {
     recordedAt = new Date().toISOString();
     setup = {
       alwaysHit: state.alwaysHit,
       supplyPriority: state.supplyPriority,
+      mapW,
+      mapH,
     };
     commands = [];
     finished = false;

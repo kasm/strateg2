@@ -31,7 +31,12 @@ export function reconstructReplay(replay, { onTick } = {}) {
     throw new Error('not a strateg2 replay');
   }
 
-  const world = createSimWorld(CONFIG);
+  // Map size is part of the setup — without it the world would have legacy
+  // dims and spawn positions, diverging from the recorded match.
+  const opts = (replay.setup && replay.setup.mapW && replay.setup.mapH)
+    ? { mapW: replay.setup.mapW, mapH: replay.setup.mapH }
+    : undefined;
+  const world = createSimWorld(CONFIG, opts);
   spawnInitial(world);
 
   // Restore the sim-affecting setup captured at tick 0.

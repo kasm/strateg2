@@ -123,7 +123,7 @@ button.active { background: #886a2a; }
   min-height: 14px;
 }
 
-#lobby-name-modal, #lobby-invite-modal {
+#lobby-name-modal, #lobby-invite-modal, #start-game-modal {
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
@@ -137,6 +137,27 @@ button.active { background: #886a2a; }
   flex-direction: column;
   gap: 10px;
   min-width: 260px;
+}
+.lobby-map-size {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: #ccc;
+}
+.lobby-map-size select {
+  background: #1a1a1a;
+  color: #eee;
+  border: 1px solid #555;
+  padding: 4px 6px;
+  font-size: 13px;
+  width: 100%;
+}
+#minimap {
+  background: #111;
+  border: 1px solid #444;
+  cursor: crosshair;
 }
 .lobby-modal-title {
   font-size: 15px;

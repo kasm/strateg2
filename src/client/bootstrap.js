@@ -14,14 +14,20 @@
 // MP is the default when the page was served by the Node server (which injects
 // `window.__STRATEG2_SERVER__=true` into index.html). The `?multiplayer=1` URL
 // flag still forces MP for static-served pages; `?multiplayer=0` forces SP.
+//
+// Map size is per-game. In SP a start-game modal asks the player to pick a
+// preset; the sim is constructed afterwards. In MP the inviter's choice rides
+// on the invite handshake and the server-broadcast match-start `hello` carries
+// the agreed dims, so sim construction is deferred until match start.
 
-import { CONFIG }              from '../core/config.js';
+import { CONFIG, MAP_PRESETS, DEFAULT_MAP_PRESET } from '../core/config.js';
 import { createSimWorld, spawnInitial, submitCommand, stepTick, TICK_DT } from '../sim/index.js';
 import { createClientState }   from './client-state.js';
 import { buildHudDom }         from './hud-dom.js';
 import { createLocalTransport } from '../transport/local.js';
 import { createNetTransport }   from '../transport/net.js';
 import { createRender }        from '../modules/render/index.js';
+import { createMinimap }       from '../modules/render/minimap.js';
 import { createInput }         from '../modules/input/index.js';
 import { createLobbyUI }       from './lobby-ui.js';
 
@@ -33,59 +39,101 @@ export function startClient() {
   const wsScheme    = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl       = params.get('server') || `${wsScheme}//${location.host}/ws`;
 
-  const sim    = createSimWorld(CONFIG);
   const client = createClientState();
 
-  // Generate the data-driven HUD DOM (resource row + build/train/research menus)
-  // before input handlers bind to the buttons.
-  buildHudDom(sim.config);
+  // HUD DOM is data-driven from CONFIG — same in every match, independent of
+  // sim instance. Build it once up front.
+  buildHudDom(CONFIG);
 
   if (isMP) {
-    // Invariant: in MP, AI runs ONLY on the server (and currently is unused
-    // since human-vs-human is the only flow). Lock both sides to 'off' so any
-    // stray AI tick on the client never emits commands that wouldn't make it
-    // onto the wire.
+    setupMP({ client, wsUrl });
+  } else {
+    showStartGameModal(MAP_PRESETS, DEFAULT_MAP_PRESET, (preset) => {
+      runGame({ client, isMP: false, dims: { mapW: preset.w, mapH: preset.h } });
+    });
+  }
+}
+
+// SP start-game modal: dropdown of MAP_PRESETS + Start button.
+function showStartGameModal(presets, defaultKey, onStart) {
+  const modal  = document.getElementById('start-game-modal');
+  const select = document.getElementById('start-game-map-size');
+  const submit = document.getElementById('start-game-submit');
+  if (!modal || !select || !submit) {
+    // Defensive: index.html guarantees these exist; fall back to the default.
+    onStart(presets[defaultKey]);
+    return;
+  }
+  select.textContent = '';
+  for (const [key, def] of Object.entries(presets)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = def.label;
+    if (key === defaultKey) opt.selected = true;
+    select.appendChild(opt);
+  }
+  modal.style.display = '';
+  const onClick = () => {
+    const key = select.value || defaultKey;
+    modal.style.display = 'none';
+    submit.removeEventListener('click', onClick);
+    onStart(presets[key]);
+  };
+  submit.addEventListener('click', onClick);
+}
+
+// MP lobby + deferred sim construction. The net transport opens immediately so
+// lobby messages flow; the sim is built inside `onAssign` once the server's
+// match-start hello supplies the chosen map size.
+function setupMP({ client, wsUrl }) {
+  let lobbyUI = null;
+  const transport = createNetTransport(wsUrl, {
+    onAssign: ({ playerId, mapW, mapH }) => {
+      client.playerId = playerId;
+      const dims = resolveDims(mapW, mapH);
+      runGame({ client, isMP: true, dims, transport });
+      if (lobbyUI) lobbyUI.onMatchStart();
+    },
+    onLobbyHello:     (msg)  => lobbyUI && lobbyUI.onLobbyHello(msg),
+    onPlayers:        (list) => lobbyUI && lobbyUI.onPlayers(list),
+    onNameAccepted:   (msg)  => lobbyUI && lobbyUI.onNameAccepted(msg),
+    onNameRejected:   (msg)  => lobbyUI && lobbyUI.onNameRejected(msg),
+    onInvited:        (msg)  => lobbyUI && lobbyUI.onInvited(msg),
+    onInviteDeclined: (msg)  => lobbyUI && lobbyUI.onInviteDeclined(msg),
+    onInviteFailed:   (msg)  => lobbyUI && lobbyUI.onInviteFailed(msg),
+    onMatchEnded:     (msg)  => {
+      showGameOverOverlay(client, true, msg.winner, msg.reason);
+      if (lobbyUI) lobbyUI.onMatchEnded(msg);
+    },
+    onFull:           ()     => lobbyUI && lobbyUI.onFull(),
+    onError:          (e)    => { console.error('NetTransport error:', e); },
+  });
+  lobbyUI = createLobbyUI({ transport, presets: MAP_PRESETS, defaultPreset: DEFAULT_MAP_PRESET });
+}
+
+// Resolve server-supplied dims into a known preset, falling back to the
+// default. Defends against malformed/missing fields.
+function resolveDims(mapW, mapH) {
+  for (const def of Object.values(MAP_PRESETS)) {
+    if (def.w === mapW && def.h === mapH) return { mapW, mapH };
+  }
+  const fallback = MAP_PRESETS[DEFAULT_MAP_PRESET];
+  return { mapW: fallback.w, mapH: fallback.h };
+}
+
+function runGame({ client, isMP, dims, transport: existingTransport }) {
+  const sim = createSimWorld(CONFIG, dims);
+  client.camera.setMap(sim.map.w, sim.map.h);
+
+  if (isMP) {
     sim.state.aiType.red  = 'off';
     sim.state.aiType.blue = 'off';
   }
 
-  let lobbyUI = null;
-  let matchStarted = false;
-
-  const transport = isMP
-    ? createNetTransport(wsUrl, {
-        onAssign: ({ playerId }) => {
-          client.playerId = playerId;
-          matchStarted = true;
-          // Reset the local sim to a fresh match state and seed entities. The
-          // server has just done the same; the lockstep stream is about to
-          // start.
-          spawnInitial(sim);
-          if (lobbyUI) lobbyUI.onMatchStart();
-          input.refreshTrainMenu();
-          input.refreshBuildButtons();
-        },
-        onLobbyHello:     (msg)  => lobbyUI && lobbyUI.onLobbyHello(msg),
-        onPlayers:        (list) => lobbyUI && lobbyUI.onPlayers(list),
-        onNameAccepted:   (msg)  => lobbyUI && lobbyUI.onNameAccepted(msg),
-        onNameRejected:   (msg)  => lobbyUI && lobbyUI.onNameRejected(msg),
-        onInvited:        (msg)  => lobbyUI && lobbyUI.onInvited(msg),
-        onInviteDeclined: (msg)  => lobbyUI && lobbyUI.onInviteDeclined(msg),
-        onInviteFailed:   (msg)  => lobbyUI && lobbyUI.onInviteFailed(msg),
-        onMatchEnded:     (msg)  => {
-          matchStarted = false;
-          showGameOverOverlay(msg.winner, msg.reason);
-          if (lobbyUI) lobbyUI.onMatchEnded(msg);
-        },
-        onFull:           ()     => lobbyUI && lobbyUI.onFull(),
-        onError:          (e)    => { console.error('NetTransport error:', e); },
-      })
-    : createLocalTransport(sim);
+  const transport = existingTransport || createLocalTransport(sim);
+  let matchStarted = isMP; // MP starts immediately once we're called from onAssign
 
   function restart() {
-    // SP-only: in MP, restart is driven by accepting a new invite after a
-    // match ends. The Restart button stays bound for SP usage; in MP the
-    // overlay's Restart button just hides itself and the user uses the lobby.
     if (isMP) {
       document.getElementById('game-over').style.display = 'none';
       return;
@@ -100,8 +148,6 @@ export function startClient() {
   }
 
   function downloadReplay() {
-    // Serialize the recorded match to an open JSON replay file (see
-    // docs/replay-format.md) and hand it to the browser as a download.
     const replay = sim.recorder.toReplay(sim.state);
     const json   = JSON.stringify(replay);
     const stamp  = (replay.recordedAt || new Date().toISOString()).replace(/[:.]/g, '-');
@@ -133,19 +179,23 @@ export function startClient() {
     entities: sim.entities,
     getDragRect: input.getDragRect,
   });
+  const minimap = createMinimap({
+    state:  sim.state,
+    client,
+    config: sim.config,
+    map:    sim.map,
+  });
 
-  if (isMP) {
-    // Lobby UI lives only in MP. The DOM elements for it exist either way but
-    // remain hidden in SP.
-    lobbyUI = createLobbyUI({ transport });
-  } else {
-    // SP: same legacy behavior — populate the sim immediately.
-    spawnInitial(sim);
-  }
+  // SP: spawn now. MP: server has already spawned (the hello message is the
+  // signal); the local sim mirrors via the lockstep stream.
+  spawnInitial(sim);
+
   input.initInput();
   render.initRender();
+  minimap.init();
   input.refreshBuildButtons();
   input.refreshTrainMenu();
+  centerCameraOnTownHall(client, sim);
 
   const downloadBtn = document.getElementById('download-replay');
   if (downloadBtn) downloadBtn.addEventListener('click', downloadReplay);
@@ -153,20 +203,23 @@ export function startClient() {
   let overlayShown = false;
 
   if (isMP) {
-    // MP: sim advance is driven by the server. RAF is render-only.
     transport.onCommandsForTick((_serverTick, commands) => {
-      if (!matchStarted) return; // ignore stragglers between matches
+      if (!matchStarted) return;
       for (const cmd of commands) submitCommand(sim, cmd);
       stepTick(sim, TICK_DT);
     });
-    function frame() {
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      input.tickPan(dt);
       render.draw();
+      minimap.draw();
       checkOverlay();
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   } else {
-    // SP: RAF accumulator drives stepTick locally, unchanged from the original loop.
     let last = performance.now();
     let acc  = 0;
     function frame(now) {
@@ -174,7 +227,9 @@ export function startClient() {
       last = now;
       acc += dt;
       while (acc >= TICK_DT) { stepTick(sim, TICK_DT); acc -= TICK_DT; }
+      input.tickPan(dt);
       render.draw();
+      minimap.draw();
       checkOverlay();
       requestAnimationFrame(frame);
     }
@@ -183,22 +238,33 @@ export function startClient() {
 
   function checkOverlay() {
     if (sim.state.gameOver && !overlayShown) {
-      showGameOverOverlay(sim.state.gameOver, 'gameOver');
+      showGameOverOverlay(client, isMP, sim.state.gameOver, 'gameOver');
       overlayShown = true;
     } else if (!sim.state.gameOver && overlayShown) {
       document.getElementById('game-over').style.display = 'none';
       overlayShown = false;
     }
   }
+}
 
-  function showGameOverOverlay(winner, reason) {
-    const overlay = document.getElementById('game-over');
-    const myWin = isMP ? winner === client.playerId : winner === 'red';
-    const head  = reason === 'opponent-disconnected'
-      ? 'Opponent disconnected.'
-      : (myWin ? 'Victory!' : 'Defeat.');
-    document.getElementById('game-over-text').textContent =
-      `${head} (${winner || '?'} wins)`;
-    overlay.style.display = '';
-  }
+function centerCameraOnTownHall(client, sim) {
+  const me = sim.state.entities.find(
+    e => e.type === 'building' && e.kind === 'townHall' && e.owner === client.playerId
+  );
+  if (!me) return;
+  client.camera.centerOnTile(
+    me.tileX + me.w / 2,
+    me.tileY + me.h / 2,
+  );
+}
+
+function showGameOverOverlay(client, isMP, winner, reason) {
+  const overlay = document.getElementById('game-over');
+  const myWin = isMP ? winner === client.playerId : winner === 'red';
+  const head  = reason === 'opponent-disconnected'
+    ? 'Opponent disconnected.'
+    : (myWin ? 'Victory!' : 'Defeat.');
+  document.getElementById('game-over-text').textContent =
+    `${head} (${winner || '?'} wins)`;
+  overlay.style.display = '';
 }

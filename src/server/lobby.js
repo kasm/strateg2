@@ -28,10 +28,11 @@
  * @property {(conn:object) => RemoveResult} removeConn
  * @property {(conn:object, name:string) => {ok:boolean, reason?:string}} setName
  * @property {() => Array<{connId:string, name:string}>} roster
- * @property {(fromConn:object, toConn:object) => ({red:object, blue:object}|null)} startMatch
+ * @property {(fromConn:object, toConn:object, mapW:number, mapH:number) => ({red:object, blue:object, mapW:number, mapH:number}|null)} startMatch
  * @property {() => ({red:object, blue:object}|null)} endMatch
  * @property {() => boolean} isInMatch
  * @property {() => boolean} isMatchFull
+ * @property {() => ({mapW:number, mapH:number}|null)} matchDims
  * @property {(conn:object) => ('red'|'blue'|null)} matchSlotFor
  * @property {(slot:'red'|'blue') => (object|null)} matchConn
  * @property {(connId:string) => (object|null)} connById
@@ -46,8 +47,8 @@ export function createLobby() {
   /** @type {Map<string, LobbyRecord>} */
   const byId   = new Map();
 
-  /** @type {{red:object|null, blue:object|null}} */
-  const match = { red: null, blue: null };
+  /** @type {{red:object|null, blue:object|null, mapW:number|null, mapH:number|null}} */
+  const match = { red: null, blue: null, mapW: null, mapH: null };
 
   function genId() {
     // 6 chars from [a-z0-9] — collision-resistant enough for a single-server lobby.
@@ -76,6 +77,8 @@ export function createLobby() {
       opponentConn = match.red === conn ? match.blue : match.red;
       match.red = null;
       match.blue = null;
+      match.mapW = null;
+      match.mapH = null;
     }
 
     byConn.delete(conn);
@@ -113,13 +116,16 @@ export function createLobby() {
     return out;
   }
 
-  function startMatch(fromConn, toConn) {
+  function startMatch(fromConn, toConn, mapW, mapH) {
     if (fromConn === toConn) return null;
     if (!byConn.has(fromConn) || !byConn.has(toConn)) return null;
     if (match.red || match.blue) return null;
+    if (!Number.isFinite(mapW) || !Number.isFinite(mapH) || mapW <= 0 || mapH <= 0) return null;
     match.red  = fromConn;
     match.blue = toConn;
-    return { red: match.red, blue: match.blue };
+    match.mapW = mapW;
+    match.mapH = mapH;
+    return { red: match.red, blue: match.blue, mapW, mapH };
   }
 
   function endMatch() {
@@ -127,7 +133,14 @@ export function createLobby() {
     const pair = { red: match.red, blue: match.blue };
     match.red  = null;
     match.blue = null;
+    match.mapW = null;
+    match.mapH = null;
     return pair;
+  }
+
+  function matchDims() {
+    if (match.mapW == null || match.mapH == null) return null;
+    return { mapW: match.mapW, mapH: match.mapH };
   }
 
   function isInMatch()   { return !!(match.red && match.blue); }
@@ -155,7 +168,7 @@ export function createLobby() {
 
   return {
     addConn, removeConn, setName, roster,
-    startMatch, endMatch,
+    startMatch, endMatch, matchDims,
     isInMatch, isMatchFull,
     matchSlotFor, matchConn,
     connById, connIdOf, nameOf,

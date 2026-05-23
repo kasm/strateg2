@@ -20,6 +20,8 @@ human-readable, and an open format any tool or AI can consume.
   "setup": {
     "alwaysHit": true,
     "supplyPriority": "auto",
+    "mapW": 60,
+    "mapH": 40,
     "aiType": { "red": "hybrid", "blue": "def" }
   },
   "result": { "winner": "red", "finalTick": 5421 },
@@ -51,6 +53,10 @@ human-readable, and an open format any tool or AI can consume.
 
 - `alwaysHit` — arrow-homing toggle; changes combat. Restore before tick 0.
 - `supplyPriority` — `"auto" \| "wood" \| "arrows"`; changes peasant logistics.
+- `mapW` / `mapH` — map dimensions for the match. Reconstruction passes these to
+  `createSimWorld(CONFIG, {mapW, mapH})` so spawn positions and forest layout
+  match the original. Legacy replays without these fields fall back to the
+  config defaults (36×20).
 - `aiType` — `{ red, blue }`, each `off|att|def|adaptive|utility|hybrid`. This
   is **metadata only**: replays run with AI off (the log already contains every
   command the AI produced). Useful for labelling and analysis.

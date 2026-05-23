@@ -55,8 +55,8 @@ export function assess(state, config, entities, map, owner) {
   const count = kind => myBuildings.filter(b => b.kind === kind).length;
 
   const townHall = myBuildings.find(b => b.kind === 'townHall');
-  const thCx = townHall ? (townHall.tileX + townHall.w / 2) * config.tile : config.mapW * config.tile / 2;
-  const thCy = townHall ? (townHall.tileY + townHall.h / 2) * config.tile : config.mapH * config.tile / 2;
+  const thCx = townHall ? (townHall.tileX + townHall.w / 2) * config.tile : map.w * config.tile / 2;
+  const thCy = townHall ? (townHall.tileY + townHall.h / 2) * config.tile : map.h * config.tile / 2;
 
   // Threat: the enemy unit (army first, else any) closest to my Town Hall.
   let threatUnit = null, threatDist = Infinity;

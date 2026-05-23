@@ -1,8 +1,9 @@
 // Client-only lobby UI controller.
-// Owns the name-prompt modal, the right-panel player list, and the invite modal.
-// Talks to the server exclusively through the NetTransport methods passed in
-// (`setName`, `invite`, `acceptInvite`, `declineInvite`). The match-start hello
-// is observed by bootstrap, which calls `onMatchStart()` here to hide lobby UI.
+// Owns the name-prompt modal, the right-panel player list, the map-size
+// selector, and the invite modal. Talks to the server exclusively through the
+// NetTransport methods passed in (`setName`, `invite`, `acceptInvite`,
+// `declineInvite`). The match-start hello is observed by bootstrap, which
+// calls `onMatchStart()` here to hide lobby UI.
 //
 // Note: this module is loaded only in MP mode. In SP nothing here runs.
 
@@ -10,13 +11,15 @@
  * @param {{
  *   transport: {
  *     setName:        (name:string) => void,
- *     invite:         (toConnId:string) => void,
- *     acceptInvite:   (fromConnId:string) => void,
+ *     invite:         (toConnId:string, mapW:number, mapH:number) => void,
+ *     acceptInvite:   (fromConnId:string, mapW:number, mapH:number) => void,
  *     declineInvite:  (fromConnId:string) => void,
- *   }
+ *   },
+ *   presets: Object<string,{label:string,w:number,h:number}>,
+ *   defaultPreset: string,
  * }} deps
  */
-export function createLobbyUI({ transport }) {
+export function createLobbyUI({ transport, presets, defaultPreset }) {
   const namePanel    = document.getElementById('lobby-name-modal');
   const nameInput    = document.getElementById('lobby-name-input');
   const nameSubmit   = document.getElementById('lobby-name-submit');
@@ -29,11 +32,38 @@ export function createLobbyUI({ transport }) {
   const inviteText   = document.getElementById('lobby-invite-text');
   const inviteAccept = document.getElementById('lobby-invite-accept');
   const inviteDecline= document.getElementById('lobby-invite-decline');
+  const mapSizeSel   = document.getElementById('lobby-map-size');
 
   let myConnId      = null;
   let myName        = null;
-  let pendingInvite = null; // { fromConnId, fromName }
+  let pendingInvite = null; // { fromConnId, fromName, mapW, mapH }
   let lastRoster    = [];
+
+  // Populate the map-size dropdown from the supplied presets. The chosen value
+  // is read at invite-time, so each invite can carry a different size.
+  if (mapSizeSel) {
+    mapSizeSel.textContent = '';
+    for (const [key, def] of Object.entries(presets)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = def.label;
+      if (key === defaultPreset) opt.selected = true;
+      mapSizeSel.appendChild(opt);
+    }
+  }
+
+  function selectedPreset() {
+    const key = (mapSizeSel && mapSizeSel.value) || defaultPreset;
+    return presets[key] || presets[defaultPreset];
+  }
+
+  // Match a server-reported (w, h) to its preset label for the invite text.
+  function labelFor(mapW, mapH) {
+    for (const def of Object.values(presets)) {
+      if (def.w === mapW && def.h === mapH) return def.label;
+    }
+    return `${mapW}x${mapH}`;
+  }
 
   function showNameModal() {
     namePanel.style.display = '';
@@ -72,8 +102,9 @@ export function createLobbyUI({ transport }) {
       const btn = document.createElement('button');
       btn.textContent = 'Invite';
       btn.addEventListener('click', () => {
-        transport.invite(p.connId);
-        setStatus(`Invited ${p.name}…`);
+        const preset = selectedPreset();
+        transport.invite(p.connId, preset.w, preset.h);
+        setStatus(`Invited ${p.name} (${preset.label})…`);
       });
       li.appendChild(span);
       li.appendChild(btn);
@@ -125,9 +156,9 @@ export function createLobbyUI({ transport }) {
     showNameModal();
   }
 
-  function onInvited({ fromConnId, fromName }) {
-    pendingInvite = { fromConnId, fromName };
-    showInviteModal(`${fromName} invites you to a match`);
+  function onInvited({ fromConnId, fromName, mapW, mapH }) {
+    pendingInvite = { fromConnId, fromName, mapW, mapH };
+    showInviteModal(`${fromName} invites you to a ${labelFor(mapW, mapH)} match`);
   }
 
   function onInviteDeclined({ byConnId }) {
@@ -148,8 +179,6 @@ export function createLobbyUI({ transport }) {
   }
 
   function onMatchEnded({ reason, winner }) {
-    // Bootstrap shows the game-over overlay separately. We just bring the
-    // lobby back into view; the server will re-broadcast the roster.
     showPlayersPanel();
     const reasonText = reason === 'opponent-disconnected'
       ? 'Opponent disconnected — you win!'
@@ -171,7 +200,7 @@ export function createLobbyUI({ transport }) {
 
   inviteAccept.addEventListener('click', () => {
     if (!pendingInvite) return;
-    transport.acceptInvite(pendingInvite.fromConnId);
+    transport.acceptInvite(pendingInvite.fromConnId, pendingInvite.mapW, pendingInvite.mapH);
     hideInviteModal();
   });
   inviteDecline.addEventListener('click', () => {

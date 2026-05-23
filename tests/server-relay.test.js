@@ -38,37 +38,49 @@ describe('createLobby', () => {
     lobby.setName(b, 'Bob');
     // c is unnamed -> excluded
     expect(lobby.roster().map(r => r.name).sort()).toEqual(['Alice', 'Bob']);
-    lobby.startMatch(a, b);
+    lobby.startMatch(a, b, 36, 20);
     expect(lobby.roster()).toEqual([]);
     lobby.setName(c, 'Carol');
     expect(lobby.roster().map(r => r.name)).toEqual(['Carol']);
   });
 
-  it('startMatch assigns inviter=red, invitee=blue; refuses when busy or self-invite', () => {
+  it('startMatch assigns inviter=red, invitee=blue, stores dims; refuses when busy or self-invite', () => {
     const lobby = createLobby();
     const a = {}, b = {}, c = {};
     lobby.addConn(a); lobby.addConn(b); lobby.addConn(c);
-    expect(lobby.startMatch(a, a)).toBe(null);
-    const pair = lobby.startMatch(a, b);
-    expect(pair).toEqual({ red: a, blue: b });
+    expect(lobby.startMatch(a, a, 36, 20)).toBe(null);
+    const pair = lobby.startMatch(a, b, 60, 40);
+    expect(pair).toEqual({ red: a, blue: b, mapW: 60, mapH: 40 });
+    expect(lobby.matchDims()).toEqual({ mapW: 60, mapH: 40 });
     expect(lobby.isInMatch()).toBe(true);
     expect(lobby.isMatchFull()).toBe(true);
     expect(lobby.matchSlotFor(a)).toBe('red');
     expect(lobby.matchSlotFor(b)).toBe('blue');
     expect(lobby.matchConn('red')).toBe(a);
-    expect(lobby.startMatch(a, c)).toBe(null);
-    expect(lobby.startMatch(c, b)).toBe(null);
+    expect(lobby.startMatch(a, c, 36, 20)).toBe(null);
+    expect(lobby.startMatch(c, b, 36, 20)).toBe(null);
+  });
+
+  it('startMatch rejects invalid dims', () => {
+    const lobby = createLobby();
+    const a = {}, b = {};
+    lobby.addConn(a); lobby.addConn(b);
+    expect(lobby.startMatch(a, b, 0, 20)).toBe(null);
+    expect(lobby.startMatch(a, b, NaN, 20)).toBe(null);
+    expect(lobby.startMatch(a, b, 36, -1)).toBe(null);
+    expect(lobby.isInMatch()).toBe(false);
   });
 
   it('endMatch clears the pairing and frees the lobby', () => {
     const lobby = createLobby();
     const a = {}, b = {};
     lobby.addConn(a); lobby.addConn(b);
-    lobby.startMatch(a, b);
+    lobby.startMatch(a, b, 36, 20);
     const pair = lobby.endMatch();
     expect(pair).toEqual({ red: a, blue: b });
     expect(lobby.isInMatch()).toBe(false);
     expect(lobby.matchSlotFor(a)).toBe(null);
+    expect(lobby.matchDims()).toBe(null);
     expect(lobby.endMatch()).toBe(null);
   });
 
@@ -76,12 +88,13 @@ describe('createLobby', () => {
     const lobby = createLobby();
     const a = {}, b = {}, c = {};
     lobby.addConn(a); lobby.addConn(b); lobby.addConn(c);
-    lobby.startMatch(a, b);
+    lobby.startMatch(a, b, 36, 20);
     const res = lobby.removeConn(b);
     expect(res.wasInMatch).toBe(true);
     expect(res.opponentConn).toBe(a);
     expect(res.freedConnId).toBeTruthy();
     expect(lobby.isInMatch()).toBe(false);
+    expect(lobby.matchDims()).toBe(null);
     // out-of-match removal:
     const res2 = lobby.removeConn(c);
     expect(res2.wasInMatch).toBe(false);

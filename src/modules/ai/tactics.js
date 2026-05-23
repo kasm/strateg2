@@ -29,15 +29,15 @@ export function pickFocusTarget(enemies) {
 }
 
 /** Ring-outward search for the closest walkable tile to (tx, ty). */
-function nearestWalkable(map, tx, ty, config) {
-  const cx = Math.max(0, Math.min(config.mapW - 1, Math.round(tx)));
-  const cy = Math.max(0, Math.min(config.mapH - 1, Math.round(ty)));
+function nearestWalkable(map, tx, ty) {
+  const cx = Math.max(0, Math.min(map.w - 1, Math.round(tx)));
+  const cy = Math.max(0, Math.min(map.h - 1, Math.round(ty)));
   for (let r = 0; r <= 8; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const x = cx + dx, y = cy + dy;
-        if (x >= 0 && y >= 0 && x < config.mapW && y < config.mapH && map.isWalkable(x, y)) {
+        if (x >= 0 && y >= 0 && x < map.w && y < map.h && map.isWalkable(x, y)) {
           return { x, y };
         }
       }
@@ -54,7 +54,7 @@ export function safeTile(snap, map, config) {
   const cy = th.tileY + Math.floor(th.h / 2);
   // Red bases sit on the west edge, blue on the east — retreat toward our own edge.
   const dir = snap.owner === 'red' ? -1 : 1;
-  return nearestWalkable(map, cx + dir * 3, cy, config);
+  return nearestWalkable(map, cx + dir * 3, cy);
 }
 
 /** A walkable tile `tiles` away from a threat, in the direction the unit is already fleeing. */
@@ -64,7 +64,7 @@ export function fleeTile(unit, threatX, threatY, map, config, tiles) {
   dx /= len; dy /= len;
   const tx = unit.tileX + dx * tiles;
   const ty = unit.tileY + dy * tiles;
-  return nearestWalkable(map, tx, ty, config);
+  return nearestWalkable(map, tx, ty);
 }
 
 /**

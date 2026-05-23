@@ -14,9 +14,12 @@ import { tick, TICK_DT } from '../core/game-loop.js';
 
 export { TICK_DT };
 
-/** @param {import('../core/config.js').GameConfig} config */
-export function createSimWorld(config) {
-  return createWorld(config);
+/**
+ * @param {import('../core/config.js').GameConfig} config
+ * @param {{ mapW?: number, mapH?: number }} [opts]
+ */
+export function createSimWorld(config, opts) {
+  return createWorld(config, opts);
 }
 
 /** @param {import('../core/world.js').SimWorld} world */
@@ -24,8 +27,8 @@ export function spawnInitial(world) {
   world.entities.spawnInitial();
   world.ai.resetAI();
   // Start a fresh replay recording — captures setup (alwaysHit, supplyPriority,
-  // aiType) as it stands at tick 0, then logs every command from here.
-  world.recorder.begin(world.state);
+  // aiType, mapW, mapH) as it stands at tick 0, then logs every command from here.
+  world.recorder.begin(world.state, world.map.w, world.map.h);
 }
 
 /**
