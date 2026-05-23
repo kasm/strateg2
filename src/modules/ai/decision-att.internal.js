@@ -13,8 +13,8 @@
 // and shadow trainQueue counter mirror the projected post-drain state so the AI never
 // over-commits inside a single decide pass.
 
-import { findGrassSpot } from './build-order.js';
-import { assignIdlePeasants, garrisonIdleArchers } from './common.js';
+import { findGrassSpot } from './build-order.internal.js';
+import { assignIdlePeasants, garrisonIdleArchers } from './common.internal.js';
 
 const ECONOMY_ORDER = ['arrowBuilding', 'barracks', 'archeryRange', 'tower'];
 

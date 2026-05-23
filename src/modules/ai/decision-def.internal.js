@@ -14,8 +14,8 @@
 // Like the Att AI, this never mutates sim state — every decision is a submitted command.
 // A local resource budget mirrors the projected post-drain state within one pass.
 
-import { findGrassSpot } from './build-order.js';
-import { assignIdlePeasants, garrisonIdleArchers } from './common.js';
+import { findGrassSpot } from './build-order.internal.js';
+import { assignIdlePeasants, garrisonIdleArchers } from './common.internal.js';
 
 export function aiDecideDef(state, config, entities, map, commands, ai, owner) {
   const enemy = owner === 'red' ? 'blue' : 'red';

@@ -82,12 +82,12 @@ describe('invariant: research defs are internally consistent', () => {
 });
 
 describe('invariant: combat reads stats through the resolver', () => {
-  it('combat/melee.js and combat/ranged.js never read raw config.unit stats', () => {
+  it('combat/melee and combat/ranged never read raw config.unit stats', () => {
     // Effective dmg/range/cooldown/speed must flow through core/stats.js unitStat,
     // so research modifiers always apply. Raw config.unit[...].<stat> is the bug.
     const pattern = /config\.unit[^\n;]*\.(dmg|range|cooldown|speed)\b/;
     const offenders = [];
-    for (const rel of ['src/modules/combat/melee.js', 'src/modules/combat/ranged.js']) {
+    for (const rel of ['src/modules/combat/melee.internal.js', 'src/modules/combat/ranged.internal.js']) {
       read(rel).split(/\r?\n/).forEach((line, i) => {
         if (pattern.test(line.replace(/\/\/.*$/, ''))) offenders.push(`${rel}:${i + 1}`);
       });

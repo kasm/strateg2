@@ -11,7 +11,7 @@
 
 import {
   enemiesNear, pickFocusTarget, safeTile, fleeTile, commitTactic, pruneTactics,
-} from './tactics.js';
+} from './tactics.internal.js';
 
 /**
  * @param {import('./memory.js').AIMemory} memory

@@ -7,8 +7,8 @@
 //
 // Like all AI code these never mutate sim state — they only submit commands.
 
-import { findGrassSpot, buildHint } from './build-order.js';
-import { assignIdlePeasants } from './common.js';
+import { findGrassSpot, buildHint } from './build-order.internal.js';
+import { assignIdlePeasants } from './common.internal.js';
 
 /** Assign idle peasants to gathering. Wraps the shared common.js helper. */
 export function assignEconomy(deps, snap, { woodBias = false, maxGatherers = Infinity } = {}) {

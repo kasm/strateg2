@@ -10,7 +10,7 @@
 
 import {
   enemiesNear, pickFocusTarget, safeTile, fleeTile, commitTactic, pruneTactics,
-} from './tactics.js';
+} from './tactics.internal.js';
 
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
 

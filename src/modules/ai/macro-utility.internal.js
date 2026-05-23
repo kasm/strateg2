@@ -7,9 +7,9 @@
 //
 // Scores are weight (config.ai.utility.w*) times a situational factor in ~[0,1].
 
-import { assignEconomy, buildOne, trainPeasants } from './econ.js';
-import { counterPick, requiredAttackPower } from './compose.js';
-import { attackWave } from './macro-fsm.js';
+import { assignEconomy, buildOne, trainPeasants } from './econ.internal.js';
+import { counterPick, requiredAttackPower } from './compose.internal.js';
+import { attackWave } from './macro-fsm.internal.js';
 
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
 

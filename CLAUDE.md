@@ -27,6 +27,19 @@ Before doing structural exploration of this codebase with `Glob`/`Grep`, **check
 | Git churn / hot files / authors | `node .claude/scripts/git-activity.mjs [target]` |
 | npm deps usage analysis | `node .claude/scripts/deps.mjs` |
 | Aggregator (writes consolidated markdown) | `node .claude/scripts/context.mjs [target]` |
+| **Task-templated context bundle** (P10) | `node .claude/scripts/recipes/<name>.mjs` |
+
+Recipes are curated bundles for common modification tasks. They emit
+`.claude/context/recipe-<name>.md` with a task brief (read order, constraints,
+CI-enforced rules) plus the full context for the relevant files. Use these
+instead of guessing what to read.
+
+| Recipe | Use when |
+|---|---|
+| `modify-unit` | Adding or tweaking unit combat, logistics, movement |
+| `add-command` | Introducing a new command type into the dispatcher |
+| `tune-ai` | Adjusting AI deciders (att/def/adaptive/utility/hybrid) |
+| `add-render-layer` | Adding or modifying a render layer / HUD overlay |
 
 All scripts are pure read operations — safe to run without confirmation. See `.claude/scripts/README.md` for details, flags, and conventions.
 
@@ -47,3 +60,21 @@ When implementing a multi-step plan, generating `.claude/context/<target>.md` on
 - Static-served via `npx serve .` (client-only — no Node backend)
 - Tests: vitest (`npm test`)
 - Source: `src/`, tests: `tests/`
+
+## Architectural principles (CI-enforced)
+
+The codebase is organized around four base principles (separation of human-curated
+orchestration vs machine-territory leaves, complex implementation behind simple
+interface, strict modularity, token-context optimization). Six additional principles
+are enforced by `npm run check`:
+
+| # | Principle | Enforced by |
+|---|---|---|
+| **P5** | **Explicit internals.** Files named `*.internal.js` may only be imported from the same directory. | `.claude/scripts/check-internals.mjs` |
+| **P6** | **Public-surface contract.** Each module's exported names + factory output keys are snapshotted; changes show up as snapshot diffs. | `tests/public-surfaces.test.js` |
+| **P7** | **Single-writer rule.** Sim state (the top-level fields of `GameState`) may be mutated only from `src/commands/`, `src/core/`, and the tick-phase modules (units/combat/entities/ai/replay). | `.claude/scripts/check-single-writer.mjs` |
+| **P8** | **Determinism guard.** No `Math.random` / `Date.now` / `performance.now` / `new Date(...)` in the sim path. The sim must be a pure function of inputs. | `.claude/scripts/check-determinism.mjs` |
+| **P9** | **Phase order as data.** Tick phases are an exported ordered list in `src/core/game-loop.js` — adding or reordering phases requires editing the list. | `tests/phase-order.test.js` |
+| **P10** | **Task-templated context bundles.** Common modifications have named recipes that emit precisely the files an agent needs. | `.claude/scripts/recipes/` |
+
+Run `npm run check` to validate everything. Individual checks: `npm run check:internals`, `check:single-writer`, `check:determinism`. Followup work (deferred from the principles landing) is captured in `todo.md` at the repo root.

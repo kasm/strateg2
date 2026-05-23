@@ -8,10 +8,10 @@
 // `aiDecideAdaptive` is the full decide pass (macro + micro). `.microPass` runs only the
 // micro layer and is called on the fast sub-tick by the orchestrator (see index.js).
 
-import { assess } from './assess.js';
-import { getMemory } from './memory.js';
-import { macroFsm } from './macro-fsm.js';
-import { microRules } from './micro-rules.js';
+import { assess } from './assess.internal.js';
+import { getMemory } from './memory.internal.js';
+import { macroFsm } from './macro-fsm.internal.js';
+import { microRules } from './micro-rules.internal.js';
 
 export function aiDecideAdaptive(state, config, entities, map, commands, ai, owner) {
   const memory = getMemory(ai);

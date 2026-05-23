@@ -5,10 +5,10 @@
 // units' updateMelee/updateArcher delegate the actual attack here). Resolved via
 // `attachUnits(units)` — call once after both modules are constructed.
 
-import { meleeStep }    from './melee.js';
-import { archerStep }   from './ranged.js';
-import { stepProjectiles } from './projectiles.js';
-import { stepBuildings }   from './production.js';
+import { meleeStep }    from './melee.internal.js';
+import { archerStep }   from './ranged.internal.js';
+import { stepProjectiles } from './projectiles.internal.js';
+import { stepBuildings }   from './production.internal.js';
 
 /**
  * @typedef {Object} CombatModule

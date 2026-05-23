@@ -28,10 +28,10 @@ Every `src/modules/*/index.js` and `src/commands/*.js` has a JSDoc block at the 
 ## Recipes — adding things
 
 - **New unit kind**: add to `config.unit`; create `modules/units/<kind>.js`; add a `case` in `updateUnits` switch in `modules/units/index.js`; add a sprite in `modules/render/sprites.js`; wire a train button into `index.html` + the building's `trains` array in `config.building`.
-- **New building**: add to `config.building` (set `cost`, `w`, `h`, `trains`, etc.); add HUD button in `index.html`; sprite in `modules/render/sprites.js`. `commands/build.js` reads `config.building` generically — usually no change needed.
-- **New command type**: new file under `src/commands/` exporting `validate*` and `apply*`; register in the `DEFS` map in `commands/index.js`; document the command shape in a top-of-file comment matching the existing ones.
-- **Existing AI behavior**: edit `modules/ai/decision-att.js` (attacker), `decision-def.js` (turtle), `common.js` (shared helpers), or `build-order.js`; emit `commands.submit({ type:..., playerId:owner, ... })`. Do **not** mutate entities/state directly from AI.
-- **New AI personality**: add `modules/ai/decision-<name>.js` exporting an `aiDecide*` with the standard signature, register it in the `DECIDERS` map in `modules/ai/index.js`, and add an `<option>` to the Red/Blue AI selects in `index.html`. Per-side selection is `state.aiType` (`'off' | 'att' | 'def' | ...`).
+- **New building**: add to `config.building` (set `cost`, `w`, `h`, `trains`, etc.); add HUD button in `index.html`; sprite in `modules/render/sprites.js`. `commands/build.internal.js` reads `config.building` generically — usually no change needed.
+- **New command type**: new file `src/commands/<name>.internal.js` exporting `validate*` and `apply*`; register in the `DEFS` map in `commands/index.js`; document the command shape in a top-of-file comment matching the existing ones.
+- **Existing AI behavior**: edit `modules/ai/decision-att.internal.js` (attacker), `decision-def.internal.js` (turtle), `common.internal.js` (shared helpers), or `build-order.internal.js`; emit `commands.submit({ type:..., playerId:owner, ... })`. Do **not** mutate entities/state directly from AI.
+- **New AI personality**: add `modules/ai/decision-<name>.internal.js` exporting an `aiDecide*` with the standard signature, register it in the `DECIDERS` map in `modules/ai/index.js`, and add an `<option>` to the Red/Blue AI selects in `index.html`. Per-side selection is `state.aiType` (`'off' | 'att' | 'def' | ...`).
 - **Map/placement rule**: `modules/map/index.js` (`isWalkable`, `canPlaceBuilding`). Pathfinding closes over `map.isWalkable`, so a change there propagates automatically.
 
 ## Commands & workflows

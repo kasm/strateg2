@@ -1,6 +1,6 @@
 // Internal: melee swing logic. The unit closes to reach distance, then trades cooldown for damage.
 
-import { distanceToTarget } from './geometry.js';
+import { distanceToTarget } from './geometry.internal.js';
 import { unitStat } from '../../core/stats.js';
 
 export function meleeStep(u, tgt, dt, deps) {

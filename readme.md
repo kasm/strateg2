@@ -88,10 +88,10 @@ index.html  style.css  vitest.config.js  package.json
 
 | type    | file                | shape (minus `playerId/tick/seq`)                       |
 |---------|---------------------|---------------------------------------------------------|
-| `order` | `commands/order.js` | `{ unitIds:number[], target:{kind:'tile',x,y} \| {kind:'entity',id} }` |
-| `build` | `commands/build.js` | `{ kind, tileX, tileY }`                                |
-| `train` | `commands/train.js` | `{ buildingId, unitKind }`                              |
-| `eject` | `commands/eject.js` | `{ buildingId }`                                        |
+| `order` | `commands/order.internal.js` | `{ unitIds:number[], target:{kind:'tile',x,y} \| {kind:'entity',id} }` |
+| `build` | `commands/build.internal.js` | `{ kind, tileX, tileY }`                                |
+| `train` | `commands/train.internal.js` | `{ buildingId, unitKind }`                              |
+| `eject` | `commands/eject.internal.js` | `{ buildingId }`                                        |
 
 The dispatcher in `commands/index.js` is the **only writer to sim state outside the per-tick simulation steps**. Entity refs are numeric IDs; ordering is deterministic by `(playerId, seq)`.
 
@@ -101,10 +101,10 @@ The dispatcher in `commands/index.js` is the **only writer to sim state outside 
 |-----------------------|-----------------------------------------------------------------------|
 | Balance / costs / HP  | `src/core/config.js`                                                  |
 | New unit kind         | `config.unit` + `modules/units/<kind>.js` + switch in `units/index.js` + sprite in `modules/render/sprites.js` |
-| New building          | `config.building` + (optional) `commands/build.js` + HUD button in `index.html` + sprite |
-| New command type      | `src/commands/<name>.js` with `validate*`/`apply*`, register in `DEFS` in `commands/index.js` |
-| AI behavior           | `modules/ai/decision-att.js` / `decision-def.js` — emit commands only, never mutate state |
-| New AI personality    | `modules/ai/decision-<name>.js` + `DECIDERS` map in `ai/index.js` + `<option>` in `index.html` |
+| New building          | `config.building` + (optional) `commands/build.internal.js` + HUD button in `index.html` + sprite |
+| New command type      | `src/commands/<name>.internal.js` with `validate*`/`apply*`, register in `DEFS` in `commands/index.js` |
+| AI behavior           | `modules/ai/decision-att.internal.js` / `decision-def.internal.js` — emit commands only, never mutate state |
+| New AI personality    | `modules/ai/decision-<name>.internal.js` + `DECIDERS` map in `ai/index.js` + `<option>` in `index.html` |
 | Map / placement rules | `modules/map/index.js` (`isWalkable`, `canPlaceBuilding`)             |
 | Pathfinding tweaks    | `modules/pathfinding/a-star.js`                                       |
 

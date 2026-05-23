@@ -13,13 +13,13 @@
 // will route it through here too. After that the only direct mutators left are the
 // per-tick simulation steps inside tick().
 
-import { validateOrder, applyOrder } from './order.js';
-import { validateBuild, applyBuild } from './build.js';
-import { validateTrain, applyTrain } from './train.js';
-import { validateResearch, applyResearch } from './research.js';
-import { validateEject, applyEject } from './eject.js';
-import { validateRestart, applyRestart } from './restart.js';
-import { validateSetOption, applySetOption } from './set-option.js';
+import { validateOrder, applyOrder } from './order.internal.js';
+import { validateBuild, applyBuild } from './build.internal.js';
+import { validateTrain, applyTrain } from './train.internal.js';
+import { validateResearch, applyResearch } from './research.internal.js';
+import { validateEject, applyEject } from './eject.internal.js';
+import { validateRestart, applyRestart } from './restart.internal.js';
+import { validateSetOption, applySetOption } from './set-option.internal.js';
 
 /**
  * @typedef {Object} Command

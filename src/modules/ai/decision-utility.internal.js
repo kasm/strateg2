@@ -8,10 +8,10 @@
 //
 // `aiDecideUtility` is the full pass; `.microPass` is the fast micro-only sub-tick.
 
-import { assess } from './assess.js';
-import { getMemory } from './memory.js';
-import { macroUtility } from './macro-utility.js';
-import { microUtility } from './micro-utility.js';
+import { assess } from './assess.internal.js';
+import { getMemory } from './memory.internal.js';
+import { macroUtility } from './macro-utility.internal.js';
+import { microUtility } from './micro-utility.internal.js';
 
 export function aiDecideUtility(state, config, entities, map, commands, ai, owner) {
   const memory = getMemory(ai);

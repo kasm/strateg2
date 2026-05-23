@@ -16,11 +16,11 @@
 // faster than the 1.5s macro cadence. att/def are plain functions with no `.microPass`
 // property, so the sub-tick is a no-op for them and their behaviour is unchanged.
 
-import { aiDecideAtt } from './decision-att.js';
-import { aiDecideDef } from './decision-def.js';
-import { aiDecideAdaptive } from './decision-adaptive.js';
-import { aiDecideUtility } from './decision-utility.js';
-import { aiDecideHybrid } from './decision-hybrid.js';
+import { aiDecideAtt } from './decision-att.internal.js';
+import { aiDecideDef } from './decision-def.internal.js';
+import { aiDecideAdaptive } from './decision-adaptive.internal.js';
+import { aiDecideUtility } from './decision-utility.internal.js';
+import { aiDecideHybrid } from './decision-hybrid.internal.js';
 
 // Registry of AI personalities, keyed by state.aiType value. Adding a new AI is a
 // new decision-*.js module plus an entry here (and an <option> in the HUD).

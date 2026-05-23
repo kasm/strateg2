@@ -11,7 +11,11 @@
     "server": "node src/server/index.js",
     "analyze": "node .claude/scripts/context.mjs",
     "analyze:graph": "node .claude/scripts/graph.mjs",
-    "analyze:deps": "node .claude/scripts/deps.mjs"
+    "analyze:deps": "node .claude/scripts/deps.mjs",
+    "check": "node .claude/scripts/check-internals.mjs && node .claude/scripts/check-single-writer.mjs && node .claude/scripts/check-determinism.mjs && vitest run",
+    "check:internals": "node .claude/scripts/check-internals.mjs",
+    "check:single-writer": "node .claude/scripts/check-single-writer.mjs",
+    "check:determinism": "node .claude/scripts/check-determinism.mjs"
   },
   "dependencies": {
     "ws": "^8.20.1"

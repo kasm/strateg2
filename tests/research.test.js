@@ -12,7 +12,7 @@ import { tick, TICK_DT } from '../src/core/game-loop.js';
 import { canAfford, spend, refund, seedTreasury } from '../src/core/economy.js';
 import { unitStat } from '../src/core/stats.js';
 import { isUnlocked } from '../src/core/research.js';
-import { validateTrain } from '../src/commands/train.js';
+import { validateTrain } from '../src/commands/train.internal.js';
 
 function fresh() {
   const w = createWorld(CONFIG);

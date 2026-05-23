@@ -11,10 +11,10 @@
 //   push    -> send attack waves at the enemy base
 //   defend  -> hold behind towers, recall the field army, garrison archers
 
-import { assignEconomy, buildNext, buildTowers, trainArmy, trainPeasants } from './econ.js';
-import { counterPick, shouldAttack, attackTarget } from './compose.js';
-import { safeTile } from './tactics.js';
-import { garrisonIdleArchers } from './common.js';
+import { assignEconomy, buildNext, buildTowers, trainArmy, trainPeasants } from './econ.internal.js';
+import { counterPick, shouldAttack, attackTarget } from './compose.internal.js';
+import { safeTile } from './tactics.internal.js';
+import { garrisonIdleArchers } from './common.internal.js';
 
 const OPENING_BUILDS = ['arrowBuilding', 'archeryRange'];
 

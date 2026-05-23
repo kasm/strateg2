@@ -1,6 +1,6 @@
 // Internal: archer attack + arrow projectile spawn.
 
-import { distanceToTarget } from './geometry.js';
+import { distanceToTarget } from './geometry.internal.js';
 import { unitStat } from '../../core/stats.js';
 
 export function archerStep(u, tgt, dt, deps) {

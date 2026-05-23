@@ -1,0 +1,198 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`P6 — named exports of each public module file > src/commands/index.js 1`] = `
+[
+  "createCommands",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/config.js 1`] = `
+[
+  "CONFIG",
+  "DEFAULT_MAP_PRESET",
+  "MAP_PRESETS",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/economy.js 1`] = `
+[
+  "canAfford",
+  "refund",
+  "seedTreasury",
+  "spend",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/game-loop.js 1`] = `
+[
+  "PHASES",
+  "TICK_DT",
+  "tick",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/game-state.js 1`] = `
+[
+  "createGameState",
+  "resetGameState",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/research.js 1`] = `
+[
+  "applyResearchComplete",
+  "isUnlocked",
+  "seedResearch",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/stats.js 1`] = `
+[
+  "rebuildStatMods",
+  "unitStat",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/world.js 1`] = `
+[
+  "createWorld",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/ai/index.js 1`] = `
+[
+  "createAI",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/combat/index.js 1`] = `
+[
+  "createCombat",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/entities/index.js 1`] = `
+[
+  "createEntities",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/map/index.js 1`] = `
+[
+  "createMap",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/pathfinding/index.js 1`] = `
+[
+  "createPathfinding",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/units/index.js 1`] = `
+[
+  "createUnits",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/replay/recorder.js 1`] = `
+[
+  "REPLAY_FORMAT",
+  "REPLAY_VERSION",
+  "createRecorder",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/sim/index.js 1`] = `
+[
+  "TICK_DT",
+  "createSimWorld",
+  "spawnInitial",
+  "stepTick",
+  "submitCommand",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > ai — keys of createAi() output 1`] = `
+[
+  "resetAI",
+  "updateAI",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > combat — keys of createCombat() output 1`] = `
+[
+  "archerAttack",
+  "attachUnits",
+  "meleeAttack",
+  "updateBuildings",
+  "updateProjectiles",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > commands — keys of createCommands() output 1`] = `
+[
+  "drain",
+  "pendingCount",
+  "submit",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > entities — keys of createEntities() output 1`] = `
+[
+  "buildingsOf",
+  "byId",
+  "entityCenterTile",
+  "findEntityAt",
+  "killEntity",
+  "makeBuilding",
+  "makeUnit",
+  "nearestOf",
+  "pruneDead",
+  "spawnInitial",
+  "unitsOf",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > map — keys of createMap() output 1`] = `
+[
+  "canPlaceBuilding",
+  "h",
+  "isAdjacent",
+  "isWalkable",
+  "reset",
+  "setBuildingTiles",
+  "tileAt",
+  "tileCenter",
+  "tiles",
+  "w",
+  "worldToTile",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > pathfinding — keys of createPathfinding() output 1`] = `
+[
+  "aStar",
+  "findAdjacentWalkable",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > recorder — keys of createRecorder() output 1`] = `
+[
+  "begin",
+  "commandCount",
+  "finish",
+  "isFinished",
+  "record",
+  "toReplay",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > units — keys of createUnits() output 1`] = `
+[
+  "moveAdjacentTo",
+  "moveAlongPath",
+  "setMoveTarget",
+  "updateUnits",
+]
+`;
