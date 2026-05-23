@@ -12,8 +12,8 @@ import { assignIdlePeasants } from './common.internal.js';
 
 /** Assign idle peasants to gathering. Wraps the shared common.js helper. */
 export function assignEconomy(deps, snap, { woodBias = false, maxGatherers = Infinity } = {}) {
-  const { config, entities, map, commands, owner } = deps;
-  assignIdlePeasants(config, entities, map, commands, owner, { woodBias, maxGatherers });
+  const { entities, map, commands, owner } = deps;
+  assignIdlePeasants(entities, map, commands, owner, { woodBias, maxGatherers });
 }
 
 /** Can `budget` afford building `kind`? */

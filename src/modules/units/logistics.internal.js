@@ -5,7 +5,7 @@
 // resolve them via entities.byId() at the top of each function and work with the resolved
 // objects locally.
 
-import { setMoveTarget, moveAdjacentTo, moveAlongPath } from './movement.js';
+import { setMoveTarget, moveAdjacentTo, moveAlongPath } from './movement.internal.js';
 
 export function tryAutoLogistics(u, { state, config, entities }) {
   // Idle peasants self-assign to whichever logistics task is needed near them.
@@ -138,7 +138,7 @@ function gatherFromTile(u, dt, resource, deps) {
   let tile = u.targetTile;
   const inv = (t) => !t || t.resource !== resource || t.amount <= 0;
   if (!tile || inv(map.tileAt(tile.x, tile.y))) {
-    tile = findNearestResourceTile(map, resource, u.x, u.y, config.tile);
+    tile = map.findNearestResourceTile(resource, u.x, u.y);
     u.targetTile = tile;
   }
   if (!tile) { u.job = null; return; }
@@ -163,20 +163,6 @@ function gatherFromTile(u, dt, resource, deps) {
     setMoveTarget(u, spot.x, spot.y, deps);
   }
   moveAlongPath(u, dt, deps);
-}
-
-export function findNearestResourceTile(map, resource, px, py, tileSize) {
-  let best = null, bd = Infinity;
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) {
-      const t = map.tiles[y][x];
-      if (t.resource !== resource || t.amount <= 0) continue;
-      const cx = x * tileSize + tileSize / 2, cy = y * tileSize + tileSize / 2;
-      const d = (cx - px) ** 2 + (cy - py) ** 2;
-      if (d < bd) { bd = d; best = { x, y }; }
-    }
-  }
-  return best;
 }
 
 export function doHaulWood(u, dt, deps) {

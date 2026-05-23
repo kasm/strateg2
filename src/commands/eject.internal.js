@@ -3,8 +3,6 @@
 // Shape:
 //   { type:'eject', playerId, tick, seq, buildingId }
 
-import { ejectAllFromTower } from '../modules/units/archer.js';
-
 export function validateEject(deps, cmd) {
   const { entities } = deps;
   if (typeof cmd.buildingId !== 'number') return { ok: false, reason: 'bad building id' };
@@ -19,5 +17,5 @@ export function validateEject(deps, cmd) {
 export function applyEject(deps, cmd) {
   const { entities } = deps;
   const tower = entities.byId(cmd.buildingId);
-  ejectAllFromTower(tower, deps);
+  entities.ejectAllFromTower(tower);
 }

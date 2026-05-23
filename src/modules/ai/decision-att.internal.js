@@ -37,7 +37,7 @@ export function aiDecideAtt(state, config, entities, map, commands, ai, owner) {
   let thQueue = townHall ? queueLen(townHall) : 0;
 
   // 1. Assign idle peasants. Bias to wood while arrowBuilding is pending and wood is thin.
-  assignIdlePeasants(config, entities, map, commands, owner, {
+  assignIdlePeasants(entities, map, commands, owner, {
     woodBias: !has('arrowBuilding') && me.wood < 200,
   });
 

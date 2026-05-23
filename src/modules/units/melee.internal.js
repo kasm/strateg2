@@ -1,8 +1,8 @@
 // Internal: per-tick update for swordsman (and any other melee unit).
 // Auto-acquires nearby enemies within a short vision radius.
 
-import { moveAlongPath } from './movement.js';
-import { doAttack } from './logistics.js';
+import { moveAlongPath } from './movement.internal.js';
+import { doAttack } from './logistics.internal.js';
 
 export function updateMeleeUnit(u, dt, deps) {
   const { config, entities } = deps;

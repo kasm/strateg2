@@ -6,10 +6,10 @@ import {
   setMoveTarget as moveSetTarget,
   moveAdjacentTo as moveAdjacent,
   moveAlongPath as moveAlong,
-} from './movement.js';
-import { updatePeasant }     from './peasant.js';
-import { updateMeleeUnit }   from './melee.js';
-import { updateArcherUnit }  from './archer.js';
+} from './movement.internal.js';
+import { updatePeasant }     from './peasant.internal.js';
+import { updateMeleeUnit }   from './melee.internal.js';
+import { updateArcherUnit }  from './archer.internal.js';
 
 /**
  * @typedef {Object} UnitsModule

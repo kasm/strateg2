@@ -1,7 +1,7 @@
 // Internal: per-tick update for archer. Only auto-engages while it has arrows.
 
-import { moveAdjacentTo, moveAlongPath } from './movement.js';
-import { doAttack } from './logistics.js';
+import { moveAdjacentTo, moveAlongPath } from './movement.internal.js';
+import { doAttack } from './logistics.internal.js';
 import { unitStat } from '../../core/stats.js';
 
 export function updateArcherUnit(u, dt, deps) {
@@ -29,33 +29,6 @@ export function updateArcherUnit(u, dt, deps) {
   }
   if (u.insideBuildingId != null) return;
   moveAlongPath(u, dt, deps);
-}
-
-export function ejectFromTower(u, deps) {
-  const { map, pathfinding, entities } = deps;
-  const tower = entities.byId(u.insideBuildingId);
-  if (!tower) return;
-  const i = tower.garrisonIds.indexOf(u.id);
-  if (i !== -1) tower.garrisonIds.splice(i, 1);
-  u.insideBuildingId = null;
-  u.path = null;
-  u.job = null;
-  u.jobTargetId = null;
-  const spot = pathfinding.findAdjacentWalkable(tower.tileX, tower.tileY, tower.w, tower.h, u.x, u.y);
-  if (spot) {
-    u.tileX = spot.x; u.tileY = spot.y;
-    const c = map.tileCenter(spot.x, spot.y);
-    u.x = c.x; u.y = c.y;
-  }
-}
-
-export function ejectAllFromTower(tower, deps) {
-  const { entities } = deps;
-  while (tower.garrisonIds.length > 0) {
-    const u = entities.byId(tower.garrisonIds[0]);
-    if (!u) { tower.garrisonIds.shift(); continue; }
-    ejectFromTower(u, deps);
-  }
 }
 
 function doEnterTower(u, dt, deps) {

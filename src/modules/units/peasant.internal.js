@@ -1,10 +1,10 @@
 // Internal: per-tick update for the peasant unit kind.
 
-import { moveAlongPath } from './movement.js';
+import { moveAlongPath } from './movement.internal.js';
 import {
   tryAutoLogistics,
   doGather, doHaulWood, doHaulArrows, doAttack,
-} from './logistics.js';
+} from './logistics.internal.js';
 
 export function updatePeasant(u, dt, deps) {
   if (!u.job && u.state === 'idle') tryAutoLogistics(u, deps);

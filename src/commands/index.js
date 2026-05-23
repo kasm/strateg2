@@ -9,9 +9,9 @@
 //   - Per-tick deterministic ordering: sort by (playerId, seq). Never arrival order.
 //   - validate() is pure-read; apply() is the only mutation path.
 //
-// Phase 2/3 of the multiplayer refactor. AI still mutates directly inline; phase 4
-// will route it through here too. After that the only direct mutators left are the
-// per-tick simulation steps inside tick().
+// Phase 2/3/4 of the multiplayer refactor. AI is fully command-routed too; the only
+// direct mutators left are the per-tick simulation steps inside tick(). The P7
+// single-writer check (check-single-writer.mjs) enforces this — no carve-out for AI.
 
 import { validateOrder, applyOrder } from './order.internal.js';
 import { validateBuild, applyBuild } from './build.internal.js';

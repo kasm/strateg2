@@ -35,7 +35,7 @@ export function aiDecideDef(state, config, entities, map, commands, ai, owner) {
 
   // 1. Assign idle peasants. Once an Arrow Building exists, cap gatherers so the
   //    surplus stays idle — auto-logistics then picks them up as wood/arrow haulers.
-  assignIdlePeasants(config, entities, map, commands, owner, {
+  assignIdlePeasants(entities, map, commands, owner, {
     woodBias: me.wood < 300,
     maxGatherers: has('arrowBuilding') ? def.maxGatherers : Infinity,
   });

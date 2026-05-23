@@ -6,7 +6,7 @@
 
 import { makeUnitRecord, makeBuildingRecord } from './factory.js';
 import { findEntityAtPx, nearestEntity, entitiesOfKindOwner } from './queries.js';
-import { ejectAllFromTower } from '../units/archer.js';
+import { ejectAllFromTower } from './garrison.internal.js';
 import { seedTreasury } from '../../core/economy.js';
 import { seedResearch } from '../../core/research.js';
 
@@ -26,6 +26,9 @@ import { seedResearch } from '../../core/research.js';
  * @property {(e:Object) => void} killEntity
  * @property {() => void} pruneDead
  * @property {(e:Object) => {x:number,y:number}} entityCenterTile
+ * @property {(tower:Object) => void} ejectAllFromTower
+ *   Eject every garrisoned unit from `tower`. The `eject` command uses this;
+ *   killEntity calls the underlying helper directly during a tower-death cleanup.
  */
 
 /**
@@ -121,6 +124,7 @@ export function createEntities({ state, config, map, pathfinding }) {
     nearestOf:    (filter, fromX, fromY) => nearestEntity(state.entities, filter, fromX, fromY, config.tile),
     byId,
     killEntity, pruneDead, entityCenterTile,
+    ejectAllFromTower: (tower) => ejectAllFromTower(tower, { state, config, map, pathfinding, entities: api }),
   };
   return api;
 }

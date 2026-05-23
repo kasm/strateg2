@@ -142,6 +142,7 @@ exports[`P6 — runtime API surface of each module > entities — keys of create
 [
   "buildingsOf",
   "byId",
+  "ejectAllFromTower",
   "entityCenterTile",
   "findEntityAt",
   "killEntity",
@@ -157,6 +158,7 @@ exports[`P6 — runtime API surface of each module > entities — keys of create
 exports[`P6 — runtime API surface of each module > map — keys of createMap() output 1`] = `
 [
   "canPlaceBuilding",
+  "findNearestResourceTile",
   "h",
   "isAdjacent",
   "isWalkable",

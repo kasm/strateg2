@@ -9,7 +9,7 @@
 //     and accept invites. No sim exists yet — it is built at match start.
 //   - On accept: the inviter's chosen map size is clamped to a known preset,
 //     lobby.startMatch pairs inviter=red + invitee=blue with those dims,
-//     a fresh sim is constructed with those dims, relay/serverTick reset, and
+//     a fresh sim is constructed with those dims, relay-loop resets, and
 //     the tick loop starts broadcasting `tick-commands` and stepping the sim.
 //   - Match end (gameOver or disconnect): the pair gets a `match-ended` msg,
 //     lobby returns to vacant, sim is discarded and rebuilt at the next match.
@@ -20,14 +20,15 @@
 import http from 'node:http';
 import path from 'node:path';
 import url  from 'node:url';
-import { execFile } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 
-import { CONFIG, MAP_PRESETS }                                from '../core/config.js';
-import { createSimWorld, spawnInitial, submitCommand, stepTick, TICK_DT } from '../sim/index.js';
-import { createLobby }                                         from './lobby.js';
-import { createRelay }                                         from './relay.js';
-import { createStaticHandler }                                 from './static.js';
+import { CONFIG, MAP_PRESETS } from '../core/config.js';
+import { createSimWorld, spawnInitial } from '../sim/index.js';
+import { createLobby }         from './lobby.js';
+import { createRelay }         from './relay.js';
+import { createStaticHandler } from './static.js';
+import { createRelayLoop }     from './relay-loop.js';
+import { diagnosePortHolder }  from './port-diagnose.js';
 
 const PORT     = Number(process.env.PORT || 4010);
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../..');
@@ -66,8 +67,6 @@ function buildSim(mapW, mapH) {
   return w;
 }
 
-let serverTick = 0;
-
 const staticHandler = createStaticHandler(PROJECT_ROOT);
 const httpServer    = http.createServer((req, res) => staticHandler(req, res));
 const wss           = new WebSocketServer({ server: httpServer, path: '/ws' });
@@ -91,13 +90,21 @@ function broadcastRoster() {
   broadcast({ type: 'players', list: lobby.roster() });
 }
 
+const relayLoop = createRelayLoop({
+  relay,
+  broadcast,
+  getSim:     () => sim,
+  isActive:   () => lobby.isInMatch(),
+  onGameOver: (winner) => finishMatch('gameOver', winner),
+});
+
 function beginMatch() {
   const dims = lobby.matchDims();
   if (!dims) return;
   sim = buildSim(dims.mapW, dims.mapH);
   spawnInitial(sim);
   relay.reset();
-  serverTick = 0;
+  relayLoop.reset();
   const red  = lobby.matchConn('red');
   const blue = lobby.matchConn('blue');
   const hello = {
@@ -117,7 +124,7 @@ function finishMatch(reason, winner) {
     send(pair.blue, { type: 'match-ended', reason, winner });
   }
   relay.reset();
-  serverTick = 0;
+  relayLoop.reset();
   sim = null;
   broadcastRoster();
 }
@@ -213,34 +220,14 @@ wss.on('connection', (conn) => {
       const winner = leaverSlot === 'red' ? 'blue' : 'red';
       send(res.opponentConn, { type: 'match-ended', reason: 'opponent-disconnected', winner });
       relay.reset();
-      serverTick = 0;
+      relayLoop.reset();
       sim = null;
     }
     broadcastRoster();
   });
 });
 
-setInterval(() => {
-  if (!lobby.isInMatch() || !sim) return;
-
-  // 1. Collect everything that accumulated since the last tick.
-  const batch = relay.collectTick(serverTick);
-
-  // 2. Broadcast to both peers. Empty batches still drive tick-advance.
-  broadcast({ type: 'tick-commands', tick: serverTick, commands: batch });
-
-  // 3. Apply the batch on the server's own sim, then advance.
-  for (const cmd of batch) submitCommand(sim, cmd);
-  stepTick(sim, TICK_DT);
-
-  // 4. Match-end on victory.
-  if (sim.state.gameOver) {
-    finishMatch('gameOver', sim.state.gameOver);
-    return;
-  }
-
-  serverTick += 1;
-}, TICK_DT * 1000);
+relayLoop.start();
 
 let listenErrorHandled = false;
 function handleListenError(err) {
@@ -266,75 +253,3 @@ httpServer.listen(PORT, () => {
   console.log(`strateg2 server listening on http://localhost:${PORT}`);
   console.log(`open http://localhost:${PORT}?multiplayer=1 in two browser tabs`);
 });
-
-/**
- * Identify which process is holding the requested port. Best-effort, never throws.
- * Windows: netstat -ano + PowerShell Get-CimInstance for full command line + exe path.
- *          (Process cwd is not exposed via Win32 CLI tools without third-party utilities
- *          like Sysinternals `handle.exe` — the script path inside the command line is
- *          usually enough to identify the source.)
- * POSIX:   lsof for listener + cwd + ps for full args.
- * @param {number} port
- * @returns {Promise<string>} human-readable multi-line report
- */
-function diagnosePortHolder(port) {
-  const run = (cmd, args) => new Promise(resolve => {
-    execFile(cmd, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => resolve(err ? '' : stdout));
-  });
-
-  if (process.platform === 'win32') {
-    return run('netstat.exe', ['-ano', '-p', 'TCP']).then(out => {
-      const pids = new Set();
-      for (const line of out.split(/\r?\n/)) {
-        const m = line.match(/\s\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/);
-        if (m && Number(m[1]) === port) pids.add(m[2]);
-      }
-      if (pids.size === 0) return `  (no LISTENING socket found on :${port} — the port may belong to a non-TCP listener or another user's session)`;
-      return Promise.all([...pids].map(pid => describeWindowsPid(pid, run))).then(rows => rows.join('\n\n'));
-    });
-  }
-  return run('lsof', ['-iTCP:' + port, '-sTCP:LISTEN', '-Pn']).then(out => {
-    if (!out.trim()) return `  (lsof returned nothing — install lsof or check manually with: ss -lptn 'sport = :${port}')`;
-    const pids = new Set();
-    for (const line of out.split(/\r?\n/).filter(l => l && !l.startsWith('COMMAND'))) {
-      const parts = line.trim().split(/\s+/);
-      if (parts[1]) pids.add(parts[1]);
-    }
-    return Promise.all([...pids].map(pid => describePosixPid(pid, run))).then(rows => rows.join('\n\n'));
-  });
-}
-
-function describeWindowsPid(pid, run) {
-  const psScript =
-    `$ErrorActionPreference='SilentlyContinue';` +
-    `$p = Get-CimInstance Win32_Process -Filter "ProcessId=${pid}";` +
-    `if ($p) { '{0}|{1}|{2}' -f $p.Name, $p.ExecutablePath, $p.CommandLine }`;
-  return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript]).then(out => {
-    const first = (out.split(/\r?\n/).find(l => l.trim()) || '').trim();
-    const [name = '<unknown>', exe = '', cmdline = ''] = first.split('|');
-    const lines = [
-      `  PID ${pid}  →  ${name}`,
-      exe     ? `    exe : ${exe}`     : null,
-      cmdline ? `    args: ${cmdline}` : null,
-      `    cwd : (not exposed by Windows CLI — see the script path inside args above)`,
-    ].filter(Boolean);
-    return lines.join('\n');
-  });
-}
-
-function describePosixPid(pid, run) {
-  return Promise.all([
-    run('ps',   ['-p', pid, '-o', 'comm=,args=']),
-    run('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn']),
-  ]).then(([psOut, lsofOut]) => {
-    const psLine = (psOut.split(/\r?\n/)[0] || '').trim();
-    const [comm, ...rest] = psLine.split(/\s+/);
-    const args = rest.join(' ');
-    const cwdLine = (lsofOut.split(/\r?\n/).find(l => l.startsWith('n')) || '').slice(1);
-    return [
-      `  PID ${pid}  →  ${comm || '<unknown>'}`,
-      args    ? `    args: ${args}` : null,
-      cwdLine ? `    cwd : ${cwdLine}` : null,
-    ].filter(Boolean).join('\n');
-  });
-}

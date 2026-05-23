@@ -22,6 +22,8 @@ import { buildEmptyGrid, paintDefaultForests } from './grid.js';
  * @property {(kind:string, tx:number, ty:number) => boolean} canPlaceBuilding
  * @property {(building:Object, mark:boolean) => void} setBuildingTiles
  * @property {() => void} reset       - rebuild the grid to its initial state
+ * @property {(resource:string, px:number, py:number) => {x:number,y:number}|null} findNearestResourceTile
+ *   Tile carrying `resource` (with amount > 0) closest to world-space (px,py), or null.
  */
 
 /**
@@ -87,6 +89,21 @@ export function createMap({ config, mapW, mapH }) {
     }
   }
 
+  function findNearestResourceTile(resource, px, py) {
+    let best = null, bd = Infinity;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const t = state.tiles[y][x];
+        if (t.resource !== resource || t.amount <= 0) continue;
+        const cx = x * config.tile + config.tile / 2;
+        const cy = y * config.tile + config.tile / 2;
+        const d = (cx - px) ** 2 + (cy - py) ** 2;
+        if (d < bd) { bd = d; best = { x, y }; }
+      }
+    }
+    return best;
+  }
+
   function reset() {
     // Replace tiles in place — keep referential identity of the outer object.
     const fresh = buildEmptyGrid(w, h);
@@ -103,6 +120,7 @@ export function createMap({ config, mapW, mapH }) {
     tileAt, isWalkable, isAdjacent,
     worldToTile, tileCenter,
     canPlaceBuilding, setBuildingTiles,
+    findNearestResourceTile,
     reset,
   };
 }
