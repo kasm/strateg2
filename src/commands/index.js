@@ -15,6 +15,7 @@
 
 import { validateOrder, applyOrder } from './order.internal.js';
 import { validateBuild, applyBuild } from './build.internal.js';
+export { validateBuild } from './build.internal.js';
 import { validateTrain, applyTrain } from './train.internal.js';
 import { validateResearch, applyResearch } from './research.internal.js';
 import { validateEject, applyEject } from './eject.internal.js';

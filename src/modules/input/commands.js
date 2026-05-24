@@ -4,7 +4,7 @@
 //
 // Selection lives on clientState (IDs only); sim state is never touched here.
 
-import { validateBuild } from '../../commands/build.js';
+import { validateBuild } from '../../commands/index.js';
 
 /** Selection is client-local: lives on clientState.selectedIds (IDs, not refs). */
 export function selectInRect(rect, shift, { state, client }) {

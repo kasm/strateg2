@@ -3,6 +3,7 @@
 exports[`P6 — named exports of each public module file > src/commands/index.js 1`] = `
 [
   "createCommands",
+  "validateBuild",
 ]
 `;
 
