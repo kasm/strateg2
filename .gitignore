@@ -43,9 +43,8 @@ Desktop.ini
 
 # Claude / AI scratch
 not_for_AI.txt
-.claude/settings.local.json
 .claude/*
-.claude
+!.claude/scripts/
 all.txt
 
 # Auto-saved match recordings (see src/server/games-store.js)
