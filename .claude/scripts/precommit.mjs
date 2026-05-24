@@ -19,6 +19,7 @@ function run(label, cmd, args) {
   const r = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', shell: false });
   if (r.status !== 0) {
     process.stderr.write(`\n[precommit] ${label} FAILED\n`);
+    if (r.error) process.stderr.write(`spawn error: ${r.error.message}\n`);
     if (r.stdout) process.stderr.write(r.stdout);
     if (r.stderr) process.stderr.write(r.stderr);
     return false;
@@ -71,7 +72,10 @@ if (touchesSrc) {
 if (touchesSrc || touchesTests) {
   // vitest --changed runs only tests related to files changed vs HEAD
   // (which, for a pre-commit run, is the staged set).
-  if (!run('vitest --changed', 'npx', ['--yes', 'vitest', 'run', '--changed', 'HEAD'])) {
+  // Invoke vitest's JS entry directly via node — avoids npx, which on Windows
+  // is a .cmd wrapper that spawnSync({shell:false}) cannot resolve.
+  const vitestBin = resolve(ROOT, 'node_modules/vitest/vitest.mjs');
+  if (!run('vitest --changed', process.execPath, [vitestBin, 'run', '--changed', 'HEAD'])) {
     failures.push('tests');
   }
 }
