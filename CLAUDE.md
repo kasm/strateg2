@@ -61,12 +61,20 @@ When implementing a multi-step plan, generating `.claude/context/<target>.md` on
 - Tests: vitest (`npm test`)
 - Source: `src/`, tests: `tests/`
 
-## Architectural principles (CI-enforced)
+## Architectural principles
 
-The codebase is organized around four base principles (separation of human-curated
-orchestration vs machine-territory leaves, complex implementation behind simple
-interface, strict modularity, token-context optimization). Six additional principles
-are enforced by `npm run check`:
+Ten principles structure the codebase. **P1–P4** are foundational philosophy
+that shapes how files and modules are organized — no CI check, they live in
+the reader's head. **P5–P10** are mechanically enforced by `npm run check`.
+
+### Base principles (P1–P4)
+
+- **P1 — Separation of human-readable and machine-generated code.** The codebase splits into two layers. A *human-readable* layer (high-level declarative configs, interfaces, architectural skeleton) lets humans and AI orchestrators grasp system intent at minimal token cost. A *machine-generated* layer (verbose algorithms, parsers, heavy math) is rarely inspected by humans and is delegated to specialized agents.
+- **P2 — Complex implementation, simple interface.** Inside the machine layer, code may be as verbose or hyper-optimized as needed, but it must expose a concise, intuitive high-level interface. External callers stay completely unaware of the underlying mechanics; complexity is strictly encapsulated.
+- **P3 — Strict modularity.** Module boundaries are rigid and isolated. An agent tasked with editing one function or shader must be able to operate on a single file without dragging in cascading dependencies — so context for one feature never balloons to half the project.
+- **P4 — Token-context optimization.** The repo is architected around LLM context-window constraints and cost. Context-assembly tools (see "Project analysis scripts" above) must be able to aggregate the *minimum* set of files — high-level interfaces plus the specific target module — that an agent needs to complete a task precisely and cheaply.
+
+### Enforced principles (P5–P10)
 
 | # | Principle | Enforced by |
 |---|---|---|
