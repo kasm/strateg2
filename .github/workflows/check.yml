@@ -11,9 +11,83 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
       - run: npm run check
+
+  architect-guard-comment:
+    # Additive observability layer — posts the P5-P10 verdict as a PR comment
+    # so reviewers see it without digging into Actions logs. The primary
+    # `check` job above is still the merge gate; this job mirrors the
+    # verdict but does not separately block.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Run architectural guards
+        id: guards
+        continue-on-error: true
+        run: |
+          set +e
+          {
+            echo "P5 internals:"
+            node .claude/scripts/check-internals.mjs 2>&1 && echo "  ok"
+            echo ""
+            echo "P7 single-writer:"
+            node .claude/scripts/check-single-writer.mjs 2>&1 && echo "  ok"
+            echo ""
+            echo "P8 determinism:"
+            node .claude/scripts/check-determinism.mjs 2>&1 && echo "  ok"
+            echo ""
+            echo "Snapshot ack:"
+            node .claude/scripts/check-snapshot-ack.mjs 2>&1
+          } > guards.txt 2>&1
+          STATUS=$?
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          {
+            echo 'body<<EOF'
+            echo '<!-- architect-guard -->'
+            if [ $STATUS -eq 0 ]; then
+              echo '### Architect-guard verdict: ✅ clean'
+            else
+              echo '### Architect-guard verdict: ❌ violations'
+            fi
+            echo ''
+            echo '```'
+            cat guards.txt
+            echo '```'
+            echo ''
+            echo '_Posted by `.github/workflows/check.yml` — additive layer; primary `check` job is the merge gate._'
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Find existing comment
+        id: find
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: '<!-- architect-guard -->'
+
+      - name: Upsert PR comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.guards.outputs.body }}
+          edit-mode: replace

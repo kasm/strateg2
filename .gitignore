@@ -45,7 +45,13 @@ Desktop.ini
 not_for_AI.txt
 .claude/*
 !.claude/scripts/
+!.claude/mcp/
+!.claude/agents/
+!.claude/commands/
 all.txt
+
+# Vitest temp fixtures (mcp-replay contract test)
+tests/.tmp-mcp-replay/
 
 # Auto-saved match recordings (see src/server/games-store.js)
 .games/

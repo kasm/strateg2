@@ -12,16 +12,24 @@
     "analyze": "node .claude/scripts/context.mjs",
     "analyze:graph": "node .claude/scripts/graph.mjs",
     "analyze:deps": "node .claude/scripts/deps.mjs",
-    "check": "node .claude/scripts/check-internals.mjs && node .claude/scripts/check-single-writer.mjs && node .claude/scripts/check-determinism.mjs && vitest run",
+    "check": "node .claude/scripts/check-internals.mjs && node .claude/scripts/check-single-writer.mjs && node .claude/scripts/check-determinism.mjs && node .claude/scripts/check-snapshot-ack.mjs && vitest run",
     "check:internals": "node .claude/scripts/check-internals.mjs",
     "check:single-writer": "node .claude/scripts/check-single-writer.mjs",
-    "check:determinism": "node .claude/scripts/check-determinism.mjs"
+    "check:determinism": "node .claude/scripts/check-determinism.mjs",
+    "check:snapshot-ack": "node .claude/scripts/check-snapshot-ack.mjs",
+    "check:precommit": "node .claude/scripts/precommit.mjs",
+    "postinstall": "simple-git-hooks || true"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run check:precommit"
   },
   "dependencies": {
     "ws": "^8.20.1"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
     "acorn": "^8.14.0",
+    "simple-git-hooks": "^2.11.1",
     "vitest": "^2.1.8"
   }
 }

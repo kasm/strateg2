@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "sim-runner": {
+      "command": "node",
+      "args": [".claude/mcp/sim-runner/server.mjs"]
+    },
+    "analyzers": {
+      "command": "node",
+      "args": [".claude/mcp/analyzers/server.mjs"]
+    },
+    "replay": {
+      "command": "node",
+      "args": [".claude/mcp/replay/server.mjs"]
+    }
+  }
+}
