@@ -29,6 +29,8 @@ import { createRelay }         from './relay.js';
 import { createStaticHandler } from './static.js';
 import { createRelayLoop }     from './relay-loop.js';
 import { diagnosePortHolder }  from './port-diagnose.js';
+import { createGamesStore }    from './games-store.js';
+import { createGamesEndpoint } from './games-endpoint.js';
 
 const PORT     = Number(process.env.PORT || 4010);
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../..');
@@ -67,8 +69,13 @@ function buildSim(mapW, mapH) {
   return w;
 }
 
+const gamesStore    = createGamesStore({ projectRoot: PROJECT_ROOT });
+const gamesEndpoint = createGamesEndpoint(gamesStore);
 const staticHandler = createStaticHandler(PROJECT_ROOT);
-const httpServer    = http.createServer((req, res) => staticHandler(req, res));
+const httpServer    = http.createServer((req, res) => {
+  if (gamesEndpoint(req, res)) return;
+  staticHandler(req, res);
+});
 const wss           = new WebSocketServer({ server: httpServer, path: '/ws' });
 
 const conns = new Set();
@@ -117,7 +124,32 @@ function beginMatch() {
   send(blue, { ...hello, playerId: 'blue' });
 }
 
+// Persist the current sim's recorded replay to .games/. Best-effort: failures
+// are logged but never abort match teardown — losing a recording must not
+// strand the lobby in 'in-match' state.
+//
+// `serverWinner` is the outcome the SERVER announces in `match-ended`. On a
+// gameOver-decided match it equals state.gameOver and is a no-op patch. On a
+// disconnect-decided match state.gameOver is still null; patching ensures the
+// archived file's winner reflects the announced result. The patch is applied
+// to a deep clone so the recorder's frozen.result is never mutated (P7-safe:
+// we never touch sim state from server code).
+function saveCurrentReplay(serverWinner) {
+  if (!sim || !sim.recorder) return;
+  let replay;
+  try { replay = sim.recorder.toReplay(sim.state); }
+  catch (err) { console.error('[server] toReplay failed:', err); return; }
+  if (serverWinner && !replay.result.winner) {
+    replay = JSON.parse(JSON.stringify(replay));
+    replay.result.winner = serverWinner;
+  }
+  gamesStore.saveReplay(replay, 'mp').catch(err => {
+    console.error('[server] saveReplay failed:', err);
+  });
+}
+
 function finishMatch(reason, winner) {
+  saveCurrentReplay(winner);
   const pair = lobby.endMatch();
   if (pair) {
     send(pair.red,  { type: 'match-ended', reason, winner });
@@ -218,6 +250,9 @@ wss.on('connection', (conn) => {
     const res = lobby.removeConn(conn);
     if (res.wasInMatch && res.opponentConn) {
       const winner = leaverSlot === 'red' ? 'blue' : 'red';
+      // Persist before sim is discarded — disconnect-decided matches are
+      // archived the same as gameOver-decided ones.
+      saveCurrentReplay(winner);
       send(res.opponentConn, { type: 'match-ended', reason: 'opponent-disconnected', winner });
       relay.reset();
       relayLoop.reset();

@@ -91,6 +91,21 @@ export function runGame({ client, isMP, dims, transport: existingTransport }) {
     URL.revokeObjectURL(url);
   }
 
+  // SP-only auto-upload of the finished replay. MP recordings are saved by the
+  // server from its own sim — no client round-trip needed. The marker injected
+  // by static.js means we only POST when the Node server is actually hosting
+  // (running under `npx serve .` would 404 silently anyway, but skipping the
+  // request avoids the console noise).
+  function uploadReplay() {
+    const replay = sim.recorder.toReplay(sim.state);
+    fetch('/api/games', {
+      method:  'POST',
+      headers: { 'content-type': 'application/json' },
+      body:    JSON.stringify(replay),
+      keepalive: true,
+    }).catch(() => { /* fire-and-forget — losing an upload is non-fatal */ });
+  }
+
   const input = createInput({
     state:       sim.state,
     client,
@@ -172,6 +187,9 @@ export function runGame({ client, isMP, dims, transport: existingTransport }) {
     if (sim.state.gameOver && !overlayShown) {
       showGameOverOverlay(client, isMP, sim.state.gameOver, 'gameOver');
       overlayShown = true;
+      if (!isMP && typeof window !== 'undefined' && window.__STRATEG2_SERVER__) {
+        uploadReplay();
+      }
     } else if (!sim.state.gameOver && overlayShown) {
       document.getElementById('game-over').style.display = 'none';
       overlayShown = false;

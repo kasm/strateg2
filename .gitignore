@@ -48,3 +48,6 @@ package-lock.json
 .claude/*
 .claude
 all.txt
+
+# Auto-saved match recordings (see src/server/games-store.js)
+.games/
