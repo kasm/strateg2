@@ -2,7 +2,7 @@
 
 ## Project analysis scripts
 
-Before doing structural exploration of this codebase with `Glob`/`Grep`, **check if one of the prebuilt analyzers fits**. They live in `.claude/scripts/` and produce LLM-friendly markdown — cheaper, more accurate, and reproducible than ad-hoc search.
+Prebuilt analyzers in `.claude/scripts/` produce LLM-friendly markdown summaries. They are **cheaper than ad-hoc search for cross-cutting questions** (project overview, import graph, symbol/route inventories, complexity, churn) and for first contact with the repo. They are **not** cheaper for small modules (1–3 files), known file paths, or single-string lookups — use `Read`/`Grep` directly there. Bundle output is metadata, not source code, so you'll usually `Read` the actual files afterward. Cached bundles under `.claude/context/` are gitignored and can be days stale — regenerate (`node .claude/scripts/context.mjs [target]`) before trusting one for file layout.
 
 ### When to use
 
@@ -72,7 +72,7 @@ the reader's head. **P5–P10** are mechanically enforced by `npm run check`.
 - **P1 — Separation of human-readable and machine-generated code.** The codebase splits into two layers. A *human-readable* layer (high-level declarative configs, interfaces, architectural skeleton) lets humans and AI orchestrators grasp system intent at minimal token cost. A *machine-generated* layer (verbose algorithms, parsers, heavy math) is rarely inspected by humans and is delegated to specialized agents.
 - **P2 — Complex implementation, simple interface.** Inside the machine layer, code may be as verbose or hyper-optimized as needed, but it must expose a concise, intuitive high-level interface. External callers stay completely unaware of the underlying mechanics; complexity is strictly encapsulated.
 - **P3 — Strict modularity.** Module boundaries are rigid and isolated. An agent tasked with editing one function or shader must be able to operate on a single file without dragging in cascading dependencies — so context for one feature never balloons to half the project.
-- **P4 — Token-context optimization.** The repo is architected around LLM context-window constraints and cost. Context-assembly tools (see "Project analysis scripts" above) must be able to aggregate the *minimum* set of files — high-level interfaces plus the specific target module — that an agent needs to complete a task precisely and cheaply.
+- **P4 — Token-context optimization.** The repo is architected around LLM context-window constraints and cost. Pick the cheapest tool that answers the question. The prebuilt analyzers in `.claude/scripts/` are designed to beat ad-hoc `Glob`/`Grep` on **cross-cutting** or **first-contact** questions (project overview, import graph, symbols across a directory, churn, complexity); they lose on small modules, known files, and single-string lookups, where `Read`/`Grep` is one call. Bundles contain metadata, not source, so Claude still has to `Read` the code afterward — use a bundle only when the metadata itself is what you need. Cached bundles in `.claude/context/` go stale silently — regenerate before trusting one for file layout.
 
 ### Enforced principles (P5–P10)
 
