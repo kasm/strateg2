@@ -20,11 +20,13 @@ import { seedResearch } from './research.js';
  * @property {Map<number,Object>} entitiesById  - id -> entity, kept in sync with `entities` by the entities module
  * @property {Object[]} projectiles     - in-flight arrows
  * @property {{red:PlayerState, blue:PlayerState}} players
- * @property {'red'|'blue'|null} gameOver
+ * @property {string|null} gameOver     - winning faction id, sentinel ('draw'), or null
  * @property {boolean} alwaysHit
  * @property {'auto'|'wood'|'arrows'} supplyPriority
  * @property {{red:string, blue:string}} aiType  - which AI drives each side: off|att|def|adaptive|utility|hybrid
  * @property {number} _nextId           - monotonic entity-id counter
+ * @property {import('./events.js').SimEvent[]} events  - append-only HUD notification log
+ * @property {Object} pve               - pve subsystem state (camp timers, wave director); shape owned by src/modules/pve
  */
 
 /**
@@ -48,6 +50,8 @@ export function createGameState(config) {
     supplyPriority: 'auto',
     aiType: { red: 'off', blue: 'att' },
     _nextId: 1,
+    events: [],
+    pve: { waveTimer: 0, nextWaveAt: 0, raidAnnounced: false },
   };
 }
 
@@ -63,4 +67,8 @@ export function resetGameState(state, config) {
   }
   state.gameOver = null;
   state._nextId = 1;
+  state.events.length = 0;
+  state.pve.waveTimer = 0;
+  state.pve.nextWaveAt = 0;
+  state.pve.raidAnnounced = false;
 }

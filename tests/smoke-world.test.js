@@ -12,7 +12,7 @@ describe('world + game-loop smoke', () => {
     const w = createWorld(CONFIG);
     expect(Object.keys(w).sort()).toEqual([
       'ai', 'combat', 'commands', 'config', 'entities', 'map',
-      'pathfinding', 'recorder', 'state', 'units',
+      'pathfinding', 'pve', 'recorder', 'state', 'units',
     ]);
   });
 

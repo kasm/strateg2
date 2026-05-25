@@ -3,6 +3,7 @@
 import { moveAdjacentTo, moveAlongPath } from './movement.internal.js';
 import { doAttack } from './logistics.internal.js';
 import { unitStat } from '../../core/stats.js';
+import { isHostileBetween } from '../../core/factions.js';
 
 export function updateArcherUnit(u, dt, deps) {
   const { config, entities } = deps;
@@ -11,7 +12,7 @@ export function updateArcherUnit(u, dt, deps) {
 
   if (u.arrows > 0) {
     const enemy = entities.nearestOf(
-      e => e.owner && e.owner !== u.owner && e.owner !== 'neutral' && e.hp > 0,
+      e => e.owner && isHostileBetween(u.owner, e.owner) && e.hp > 0,
       u.x, u.y,
     );
     if (enemy) {

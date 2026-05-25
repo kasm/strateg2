@@ -32,6 +32,7 @@ describe('tick PHASES — shape and declared order', () => {
         "drainCommands",
         "advanceTick",
         "aiUpdate",
+        "pveUpdate",
         "unitsUpdate",
         "projectiles",
         "buildings",

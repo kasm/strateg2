@@ -17,8 +17,10 @@
 // Determinism: spawnInitial is deterministic (no Math.random anywhere in the sim),
 // so every peer reaches the same post-restart state.
 
+import { isPlayer } from '../core/factions.js';
+
 export function validateRestart(deps, cmd) {
-  if (cmd.playerId !== 'red' && cmd.playerId !== 'blue') {
+  if (!isPlayer(cmd.playerId)) {
     return { ok: false, reason: 'bad player' };
   }
   return { ok: true };

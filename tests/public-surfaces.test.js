@@ -18,7 +18,7 @@ import { createWorld } from '../src/core/world.js';
 describe('P6 — runtime API surface of each module', () => {
   const w = createWorld(CONFIG);
   // Skip 'state' and 'config' — they're plain data, not modules.
-  const moduleNames = ['ai', 'combat', 'commands', 'entities', 'map', 'pathfinding', 'units', 'recorder'];
+  const moduleNames = ['ai', 'combat', 'commands', 'entities', 'map', 'pathfinding', 'units', 'pve', 'recorder'];
 
   for (const name of moduleNames) {
     it(`${name} — keys of create${name[0].toUpperCase() + name.slice(1)}() output`, () => {
@@ -39,6 +39,7 @@ describe('P6 — named exports of each public module file', () => {
     '../src/modules/entities/index.js',
     '../src/modules/map/index.js',
     '../src/modules/pathfinding/index.js',
+    '../src/modules/pve/index.js',
     '../src/replay/recorder.js',
     '../src/replay/playback.js',
     '../src/core/world.js',
@@ -48,6 +49,9 @@ describe('P6 — named exports of each public module file', () => {
     '../src/core/research.js',
     '../src/core/stats.js',
     '../src/core/config.js',
+    '../src/core/factions.js',
+    '../src/core/events.js',
+    '../src/core/victory.js',
   ];
 
   for (const p of modulePaths) {

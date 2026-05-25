@@ -9,6 +9,8 @@
 // Mirrors the per-unit logic that issueOrder() used to do directly from input.
 // Now lives behind validate/apply so input, AI, and (future) network all share it.
 
+import { isHostileBetween } from '../core/factions.js';
+
 /**
  * Read-only legality check. Apply-time still re-checks per-unit ownership/aliveness
  * (a unit may have died between submit and apply on a future server-authoritative tick).
@@ -53,7 +55,7 @@ export function issueOrderTo(u, tgt, tile, deps) {
   u.gatherResource = null; u.path = null;
 
   if (tgt) {
-    if (tgt.owner && tgt.owner !== u.owner && tgt.owner !== 'neutral') {
+    if (tgt.owner && isHostileBetween(u.owner, tgt.owner)) {
       u.job = 'attack'; u.jobTargetId = tgt.id; return;
     }
     // Resource node (e.g. gold mine) — any building whose def carries a `node` payload.

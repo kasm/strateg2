@@ -3,13 +3,14 @@
 
 import { moveAlongPath } from './movement.internal.js';
 import { doAttack } from './logistics.internal.js';
+import { isHostileBetween } from '../../core/factions.js';
 
 export function updateMeleeUnit(u, dt, deps) {
   const { config, entities } = deps;
   if (u.job === 'attack') { doAttack(u, dt, deps); return; }
 
   const enemy = entities.nearestOf(
-    e => e.owner && e.owner !== u.owner && e.owner !== 'neutral' && e.hp > 0,
+    e => e.owner && isHostileBetween(u.owner, e.owner) && e.hp > 0,
     u.x, u.y,
   );
   if (enemy) {

@@ -9,6 +9,8 @@ import { findEntityAtPx, nearestEntity, entitiesOfKindOwner } from './queries.js
 import { ejectAllFromTower } from './garrison.internal.js';
 import { seedTreasury } from '../../core/economy.js';
 import { seedResearch } from '../../core/research.js';
+import { emit } from '../../core/events.js';
+import { hasTreasury, players } from '../../core/factions.js';
 
 /**
  * @typedef {Object} EntitiesModule
@@ -23,7 +25,7 @@ import { seedResearch } from '../../core/research.js';
  * @property {(owner:string) => Object[]} buildingsOf
  * @property {(filter:(e:Object)=>boolean, fromX:number, fromY:number) => Object|null} nearestOf
  * @property {(id:number|null|undefined) => Object|null} byId
- * @property {(e:Object) => void} killEntity
+ * @property {(e:Object, killerOwner?:string) => void} killEntity
  * @property {() => void} pruneDead
  * @property {(e:Object) => {x:number,y:number}} entityCenterTile
  * @property {(tower:Object) => void} ejectAllFromTower
@@ -69,6 +71,10 @@ export function createEntities({ state, config, map, pathfinding }) {
     state.projectiles.length = 0;
     state.gameOver = null;
     state.tick = 0;
+    state.events.length = 0;
+    state.pve.waveTimer = 0;
+    state.pve.raidAnnounced = false;
+    state.pve.nextWaveAt = config.pve?.firstWaveAfterSec ?? 0;
     for (const side of ['red', 'blue']) {
       seedTreasury(state.players[side], config);
       seedResearch(state.players[side], config);
@@ -83,15 +89,62 @@ export function createEntities({ state, config, map, pathfinding }) {
       makeUnit('peasant', 'red', 5 + i, yMid + 1);
       makeUnit('peasant', 'blue', map.w - 6 - i, yMid + 1);
     }
+
+    if (config.pve?.enabled) spawnBanditCamps();
   }
 
-  function killEntity(e) {
+  /**
+   * Place `config.pve.campCount` banditCamps at deterministic positions and
+   * assign each a target player faction (round-robin over `players()`).
+   * Both the spot ordering and the target-faction assignment alternate sides
+   * so that raid pressure splits evenly between players from the very first
+   * wave — no camp gets to send every raid against the same player just
+   * because nearestOf() picks the first town hall on ties.
+   *
+   * Spots, in order: NW, SE, SW, NE. With campCount=2 that's opposite corners,
+   * and the round-robin gives camp 0 -> first player, camp 1 -> second.
+   */
+  function spawnBanditCamps() {
+    const count = Math.max(0, config.pve.campCount | 0);
+    const yTop  = 1;
+    const yBot  = Math.max(1, map.h - 4);
+    const xLeft  = Math.max(2,             Math.floor(map.w * 0.25));
+    const xRight = Math.min(map.w - 4,     Math.floor(map.w * 0.75));
+    const spots = [
+      { x: xLeft,  y: yTop }, // NW
+      { x: xRight, y: yBot }, // SE
+      { x: xLeft,  y: yBot }, // SW
+      { x: xRight, y: yTop }, // NE
+    ];
+    const facs = players();
+    for (let i = 0; i < count && i < spots.length; i++) {
+      const s = spots[i];
+      const camp = makeBuilding('banditCamp', 'wild', s.x, s.y);
+      // Assigned target faction — read by the pve wave director when sending
+      // bandits out. Defended against an empty player list (no-op camp).
+      camp.targetFaction = facs.length > 0 ? facs[i % facs.length] : null;
+    }
+  }
+
+  function killEntity(e, killerOwner) {
     if (e.type === 'building') {
       if (e.kind === 'tower' && e.garrisonIds && e.garrisonIds.length > 0) {
         map.setBuildingTiles(e, false);
         ejectAllFromTower(e, { state, config, map, pathfinding, entities: api });
       } else {
         map.setBuildingTiles(e, false);
+      }
+      // Camp destruction: award the killer's faction a configured bounty, and
+      // emit a HUD event either way (so a defensive-only run still sees the
+      // milestone). `killerOwner` is best-effort — combat passes it when known.
+      if (e.kind === 'banditCamp') {
+        const bounty = config.pve?.bountyOnDestroy ?? 0;
+        if (bounty > 0 && killerOwner && hasTreasury(killerOwner)) {
+          state.players[killerOwner].gold = (state.players[killerOwner].gold ?? 0) + bounty;
+          emit(state, 'camp-destroyed', Math.round(8 / (1 / 30)), { faction: killerOwner, bounty });
+        } else {
+          emit(state, 'camp-destroyed', Math.round(8 / (1 / 30)), { faction: killerOwner ?? null, bounty: 0 });
+        }
       }
     }
     e.hp = 0;

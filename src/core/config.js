@@ -87,6 +87,9 @@ export const CONFIG = {
     blue: '#3b6fd8',
     redLight: '#ff7575',
     blueLight: '#7da9ff',
+    wild: '#6b4326',
+    wildLight: '#a87850',
+    neutral: '#a8862b',
     arrow: '#f1e7c0',
     select: '#ffe44a',
     hp: '#4caf50',
@@ -97,6 +100,12 @@ export const CONFIG = {
     peasant:   { role: 'worker', shape: 'circle',   hp: 25, dmg: 2, range: 1, cooldown: 1.0, speed: 2.2, cost: { gold: 50 }, train: 5, carry: 5 },
     swordsman: { role: 'melee',  shape: 'square',   hp: 60, dmg: 8, range: 1, cooldown: 1.0, speed: 2.0, cost: { gold: 80 }, train: 8 },
     archer:    { role: 'ranged', shape: 'triangle', hp: 35, dmg: 6, range: 6, cooldown: 1.2, speed: 2.0, cost: { gold: 70 }, train: 8, quiver: { max: 10 } },
+    // PvE creature. Trained by no player building — spawned only by the
+    // pve wave director out of a banditCamp. Mid-tier melee: weaker than a
+    // swordsman so a moderate garrison repels a wave, but threatening
+    // unattended workers. Cost is meaningless (never trained) but must be
+    // present so the cost-iteration helpers don't choke.
+    bandit:    { role: 'melee',  shape: 'square',   hp: 35, dmg: 5, range: 1, cooldown: 1.0, speed: 2.0, cost: {}, train: 0 },
   },
 
   building: {
@@ -107,6 +116,10 @@ export const CONFIG = {
     tower:         { hp: 250,  w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], fill: '#6e6e6e', label: 'Tower', garrisonMax: 4, rangeMult: 1.5, dmgMult: 2, arrowCap: 20, distributeTime: 0.25 },
     blacksmith:    { hp: 200,  w: 2, h: 2, cost: { gold: 150, wood: 100 }, trains: [], fill: '#4a4a6e', label: 'Blacksmith', researches: ['ironWeapons', 'fletching'] },
     goldMine:      { hp: 1000, w: 2, h: 2, cost: null, trains: [], fill: '#a8862b', label: 'Mine', node: { resource: 'gold', amount: 10000 } },
+    // PvE structure: a wild lair. Placed by spawnInitial when pve.enabled.
+    // Sturdy but not absurdly so — a focused player push can take one down.
+    // Trains nothing; the pve director spawns bandits out of it on its own timer.
+    banditCamp:    { hp: 350,  w: 2, h: 2, cost: null, trains: [], fill: '#3a2418', label: 'Camp' },
   },
 
   resources: {
@@ -197,6 +210,24 @@ export const CONFIG = {
   },
 
   startResources: { gold: 300, wood: 200 },
+
+  // Victory mode. Single source of truth for who-wins logic; pluggable.
+  // See src/core/victory.js for the list of supported modes.
+  victory: { mode: 'eliminateOpponent' },
+
+  // PvE wave subsystem. Off by default — turning this on adds the `wild` faction,
+  // spawns banditCamps on the map, and runs the pveUpdate phase each tick.
+  // With pve.enabled=false the phase is a no-op and the sim is bit-identical to
+  // the pre-PvE codebase (verified via replay-checksum on existing .games/).
+  pve: {
+    enabled: true,
+    campCount: 2,                 // banditCamps placed at init
+    firstWaveAfterSec: 60,        // delay before the first wave leaves a camp
+    waveIntervalSec: 90,          // gap between subsequent waves from a single camp
+    waveSize: 4,                  // bandits per wave
+    announceLeadSec: 10,          // emit 'raid-incoming' toast this long before the wave
+    bountyOnDestroy: 200,         // gold awarded to the faction that destroys a camp; 0 = no bounty
+  },
 };
 
 // Player-selectable map sizes. Server clamps to these keys to refuse forged dims.

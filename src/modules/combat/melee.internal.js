@@ -20,7 +20,7 @@ export function meleeStep(u, tgt, dt, deps) {
     tgt.hp -= Math.max(1, unitStat(deps, u, 'dmg') - armor);
     u.cooldown = unitStat(deps, u, 'cooldown');
     if (tgt.hp <= 0) {
-      entities.killEntity(tgt);
+      entities.killEntity(tgt, u.owner);
       u.job = null; u.jobTargetId = null; u.state = 'idle';
     }
   }

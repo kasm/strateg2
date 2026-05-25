@@ -30,7 +30,7 @@ export function stepProjectiles(dt, { state, config, entities }) {
     const hit = findHit(x0, y0, p.x, p.y, p, target, state.entities, config.tile);
     if (hit) {
       hit.hp -= p.dmg;
-      if (hit.hp <= 0) entities.killEntity(hit);
+      if (hit.hp <= 0) entities.killEntity(hit, p.owner);
       p.dead = true;
     }
   }

@@ -10,6 +10,8 @@
 // are applied at the very start, in deterministic (playerId, seq) order. After that
 // the rest of the tick is pure simulation against the post-command state.
 
+import { checkVictory } from './victory.js';
+
 export const TICK_DT = 1 / 30;
 
 /**
@@ -20,11 +22,13 @@ export const TICK_DT = 1 / 30;
  * @phase advanceTick    Increment state.tick. Only runs on live (non-gameOver) ticks.
  * @phase aiUpdate       AI deciders run; orders mutate inline (legacy) or submit
  *   commands (preferred path; not yet fully enforced — see commands/index.js).
+ * @phase pveUpdate      Wave director: spawns wild creatures out of banditCamps,
+ *   announces incoming raids. No-op when config.pve.enabled is false.
  * @phase unitsUpdate    Per-unit state machines step: gather, haul, move, attack.
  * @phase projectiles    In-flight projectiles advance; hits resolve damage.
  * @phase buildings      Production timers tick; trained units spawn at rally.
  * @phase pruneDead      Dead entities removed from state.entities and entitiesById.
- * @phase victoryCheck   If one side has no non-mine buildings, set state.gameOver.
+ * @phase victoryCheck   Pluggable victory rule (see src/core/victory.js); sets state.gameOver.
  *
  * @type {Array<{name: string, fn: (w: import('./world.js').World, dt: number) => void}>}
  */
@@ -32,11 +36,12 @@ export const PHASES = [
   { name: 'drainCommands', fn: (w)     => w.commands.drain() },
   { name: 'advanceTick',   fn: (w)     => { w.state.tick += 1; } },
   { name: 'aiUpdate',      fn: (w, dt) => w.ai.updateAI(dt) },
+  { name: 'pveUpdate',     fn: (w, dt) => w.pve.updatePVE(dt) },
   { name: 'unitsUpdate',   fn: (w, dt) => w.units.updateUnits(dt) },
   { name: 'projectiles',   fn: (w, dt) => w.combat.updateProjectiles(dt) },
   { name: 'buildings',     fn: (w, dt) => w.combat.updateBuildings(dt) },
   { name: 'pruneDead',     fn: (w)     => w.entities.pruneDead() },
-  { name: 'victoryCheck',  fn: (w)     => checkVictory(w) },
+  { name: 'victoryCheck',  fn: (w)     => { w.state.gameOver = checkVictory(w); } },
 ];
 
 /**
@@ -55,11 +60,4 @@ export function tick(w, dt) {
   // Freeze the replay the instant a side wins, so post-gameOver input (the overlay
   // is up but units are still clickable) never pollutes the recording.
   if (w.state.gameOver) w.recorder?.finish(w.state);
-}
-
-function checkVictory(w) {
-  const red  = w.entities.buildingsOf('red').filter(b => b.kind !== 'goldMine');
-  const blue = w.entities.buildingsOf('blue').filter(b => b.kind !== 'goldMine');
-  if (red.length === 0)       w.state.gameOver = 'blue';
-  else if (blue.length === 0) w.state.gameOver = 'red';
 }

@@ -5,10 +5,15 @@ import { createMap } from '../src/modules/map/index.js';
 import { createEntities } from '../src/modules/entities/index.js';
 import { createClientState, resolveSelected } from '../src/client/client-state.js';
 
-function wire() {
-  const state = createGameState(CONFIG);
-  const map   = createMap({ config: CONFIG });
-  const entities = createEntities({ state, config: CONFIG, map });
+// Force pve.enabled=false so this baseline-layout test does not flake when the
+// project default toggles pve on. The pve-specific spawn shape is covered by
+// tests/pve-smoke.test.js.
+const BASE_CONFIG = { ...CONFIG, pve: { ...CONFIG.pve, enabled: false } };
+
+function wire(cfg = BASE_CONFIG) {
+  const state = createGameState(cfg);
+  const map   = createMap({ config: cfg });
+  const entities = createEntities({ state, config: cfg, map });
   return { state, map, entities };
 }
 

@@ -12,10 +12,11 @@
     "analyze": "node .claude/scripts/context.mjs",
     "analyze:graph": "node .claude/scripts/graph.mjs",
     "analyze:deps": "node .claude/scripts/deps.mjs",
-    "check": "node .claude/scripts/check-internals.mjs && node .claude/scripts/check-single-writer.mjs && node .claude/scripts/check-determinism.mjs && node .claude/scripts/check-snapshot-ack.mjs && vitest run",
+    "check": "node .claude/scripts/check-internals.mjs && node .claude/scripts/check-single-writer.mjs && node .claude/scripts/check-determinism.mjs && node .claude/scripts/check-faction-access.mjs && node .claude/scripts/check-snapshot-ack.mjs && vitest run",
     "check:internals": "node .claude/scripts/check-internals.mjs",
     "check:single-writer": "node .claude/scripts/check-single-writer.mjs",
     "check:determinism": "node .claude/scripts/check-determinism.mjs",
+    "check:faction-access": "node .claude/scripts/check-faction-access.mjs",
     "check:snapshot-ack": "node .claude/scripts/check-snapshot-ack.mjs",
     "check:precommit": "node .claude/scripts/precommit.mjs",
     "postinstall": "simple-git-hooks || true"

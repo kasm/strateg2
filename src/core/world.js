@@ -11,6 +11,7 @@ import { createEntities }    from '../modules/entities/index.js';
 import { createCombat }      from '../modules/combat/index.js';
 import { createUnits }       from '../modules/units/index.js';
 import { createAI }          from '../modules/ai/index.js';
+import { createPVE }         from '../modules/pve/index.js';
 import { createCommands }    from '../commands/index.js';
 import { createRecorder }    from '../replay/recorder.js';
 
@@ -24,6 +25,7 @@ import { createRecorder }    from '../replay/recorder.js';
  * @property {import('../modules/units/index.js').UnitsModule} units
  * @property {import('../modules/combat/index.js').CombatModule} combat
  * @property {import('../modules/ai/index.js').AIModule} ai
+ * @property {import('../modules/pve/index.js').PVEModule} pve
  * @property {import('../commands/index.js').CommandsModule} commands
  * @property {import('../replay/recorder.js').Recorder} recorder
  */
@@ -50,6 +52,9 @@ export function createWorld(config, opts = {}) {
   // Drained at the start of every tick (see core/game-loop.js).
   const commands    = createCommands({ state, config, map, entities, units, pathfinding, recorder });
   const ai          = createAI({ state, config, entities, map, commands });
+  // PvE wave director. Always wired; runs as a no-op when config.pve.enabled
+  // is false (the pveUpdate tick phase still iterates it for one cheap check).
+  const pve         = createPVE({ state, config, entities, units, map });
 
-  return { state, config, map, pathfinding, entities, units, combat, ai, commands, recorder };
+  return { state, config, map, pathfinding, entities, units, combat, ai, pve, commands, recorder };
 }

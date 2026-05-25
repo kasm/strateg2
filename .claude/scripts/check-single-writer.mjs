@@ -38,6 +38,7 @@ const ALLOWED_PREFIXES = [
   'src/modules/combat/',    // projectiles + buildings phases legitimately mutate sim state
   'src/modules/entities/',  // entity factory + pruneDead — canonical owner of state.entities
   'src/modules/units/',     // unitsUpdate phase mutates unit positions/jobs/hp on state.entities
+  'src/modules/pve/',       // pveUpdate phase: spawns wild creatures, drives wave timers, emits events
   'src/replay/',            // replay reconstruction restores state from a save — equivalent to
                             //   spawnInitial in entities/index.js
 ];
@@ -54,6 +55,8 @@ const ALLOWED_PREFIXES = [
 const SIM_FIELDS = [
   'tick', 'entities', 'entitiesById', 'projectiles', 'players',
   'gameOver', 'alwaysHit', 'supplyPriority', '_nextId',
+  'events',   // append-only notification log; mutators in core/events.js + emitters in core/, modules/pve/, modules/entities/
+  'pve',      // wave-director timers; mutators only in modules/pve/
 ];
 
 const SIM_FIELD_RE = new RegExp(`(^|\\.)state\\.(${SIM_FIELDS.join('|')})(\\.|$)`);

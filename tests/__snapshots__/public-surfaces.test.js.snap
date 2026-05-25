@@ -24,6 +24,28 @@ exports[`P6 — named exports of each public module file > src/core/economy.js 1
 ]
 `;
 
+exports[`P6 — named exports of each public module file > src/core/events.js 1`] = `
+[
+  "emit",
+  "liveEvents",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/factions.js 1`] = `
+[
+  "FACTIONS",
+  "get",
+  "hasTreasury",
+  "isHostileBetween",
+  "isKnown",
+  "isPlayer",
+  "list",
+  "participatesInVictory",
+  "players",
+  "victoryParticipants",
+]
+`;
+
 exports[`P6 — named exports of each public module file > src/core/game-loop.js 1`] = `
 [
   "PHASES",
@@ -51,6 +73,12 @@ exports[`P6 — named exports of each public module file > src/core/stats.js 1`]
 [
   "rebuildStatMods",
   "unitStat",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/core/victory.js 1`] = `
+[
+  "checkVictory",
 ]
 `;
 
@@ -87,6 +115,12 @@ exports[`P6 — named exports of each public module file > src/modules/map/index
 exports[`P6 — named exports of each public module file > src/modules/pathfinding/index.js 1`] = `
 [
   "createPathfinding",
+]
+`;
+
+exports[`P6 — named exports of each public module file > src/modules/pve/index.js 1`] = `
+[
+  "createPVE",
 ]
 `;
 
@@ -183,6 +217,12 @@ exports[`P6 — runtime API surface of each module > pathfinding — keys of cre
 [
   "aStar",
   "findAdjacentWalkable",
+]
+`;
+
+exports[`P6 — runtime API surface of each module > pve — keys of createPve() output 1`] = `
+[
+  "updatePVE",
 ]
 `;
 

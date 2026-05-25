@@ -2,6 +2,7 @@
 
 import { drawScene } from './scene.js';
 import { updateHUD } from './hud.js';
+import { renderToasts } from './toasts.js';
 import { resolveSelected } from '../../client/client-state.js';
 
 /**
@@ -36,6 +37,7 @@ export function createRender({ state, client, config, map, entities, getDragRect
       const selectedIdSet = new Set(client.selectedIds);
       drawScene(ctx, { state, client, config, map, getDragRect, selectedIdSet });
       updateHUD(state, client, config, entities, selectedLive);
+      renderToasts(state);
     },
   };
 }
