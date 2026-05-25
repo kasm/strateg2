@@ -18,9 +18,10 @@
  *   presets: Object<string,{label:string,w:number,h:number}>,
  *   defaultPreset: string,
  *   onLoadReplay?: () => void,
+ *   onPlayVsAI?:   () => void,
  * }} deps
  */
-export function createLobbyUI({ transport, presets, defaultPreset, onLoadReplay }) {
+export function createLobbyUI({ transport, presets, defaultPreset, onLoadReplay, onPlayVsAI }) {
   const namePanel    = document.getElementById('lobby-name-modal');
   const nameInput    = document.getElementById('lobby-name-input');
   const nameSubmit   = document.getElementById('lobby-name-submit');
@@ -202,6 +203,14 @@ export function createLobbyUI({ transport, presets, defaultPreset, onLoadReplay 
   const loadReplayBtn = document.getElementById('lobby-load-replay');
   if (loadReplayBtn && onLoadReplay) {
     loadReplayBtn.addEventListener('click', () => onLoadReplay());
+  }
+
+  const playVsAIBtn = document.getElementById('lobby-play-vs-ai');
+  if (playVsAIBtn && onPlayVsAI) {
+    playVsAIBtn.addEventListener('click', () => {
+      hidePlayersPanel();
+      onPlayVsAI();
+    });
   }
 
   inviteAccept.addEventListener('click', () => {

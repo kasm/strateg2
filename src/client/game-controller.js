@@ -21,7 +21,12 @@ import { showReplayBrowser }    from './replay-browser.js';
 // MP lobby + deferred sim construction. The net transport opens immediately so
 // lobby messages flow; the sim is built inside `onAssign` once the server's
 // match-start hello supplies the chosen map size.
-export function setupMP({ client, wsUrl }) {
+//
+// `onPlayVsAI` (optional) is invoked when the user clicks the lobby's
+// "Play vs AI" button. Bootstrap supplies it and uses the shared SP start
+// modal; the WebSocket transport stays open but goes idle once the local
+// vs-AI sim takes over.
+export function setupMP({ client, wsUrl, onPlayVsAI }) {
   let lobbyUI = null;
   const transport = createNetTransport(wsUrl, {
     onAssign: ({ playerId, mapW, mapH }) => {
@@ -53,6 +58,7 @@ export function setupMP({ client, wsUrl }) {
         onPick: (replay) => runReplay({ client, replay }),
       });
     },
+    onPlayVsAI,
   });
 }
 
@@ -66,13 +72,16 @@ function resolveDims(mapW, mapH) {
   return { mapW: fallback.w, mapH: fallback.h };
 }
 
-export function runGame({ client, isMP, dims, transport: existingTransport }) {
+export function runGame({ client, isMP, dims, transport: existingTransport, aiTypes }) {
   const sim = createSimWorld(CONFIG, dims);
   client.camera.setMap(sim.map.w, sim.map.h);
 
   if (isMP) {
     sim.state.aiType.red  = 'off';
     sim.state.aiType.blue = 'off';
+  } else if (aiTypes) {
+    sim.state.aiType.red  = aiTypes.red;
+    sim.state.aiType.blue = aiTypes.blue;
   }
 
   const transport = existingTransport || createLocalTransport(sim);
