@@ -96,6 +96,12 @@ exports[`P6 — named exports of each public module file > src/modules/units/ind
 ]
 `;
 
+exports[`P6 — named exports of each public module file > src/replay/playback.js 1`] = `
+[
+  "createPlayback",
+]
+`;
+
 exports[`P6 — named exports of each public module file > src/replay/recorder.js 1`] = `
 [
   "REPLAY_FORMAT",

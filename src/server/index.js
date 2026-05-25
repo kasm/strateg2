@@ -31,6 +31,7 @@ import { createRelayLoop }     from './relay-loop.js';
 import { diagnosePortHolder }  from './port-diagnose.js';
 import { createGamesStore }    from './games-store.js';
 import { createGamesEndpoint } from './games-endpoint.js';
+import { createGamesListEndpoint } from './games-list-endpoint.js';
 
 const PORT     = Number(process.env.PORT || 4010);
 const PROJECT_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../..');
@@ -69,10 +70,14 @@ function buildSim(mapW, mapH) {
   return w;
 }
 
-const gamesStore    = createGamesStore({ projectRoot: PROJECT_ROOT });
-const gamesEndpoint = createGamesEndpoint(gamesStore);
-const staticHandler = createStaticHandler(PROJECT_ROOT);
-const httpServer    = http.createServer((req, res) => {
+const gamesStore        = createGamesStore({ projectRoot: PROJECT_ROOT });
+const gamesEndpoint     = createGamesEndpoint(gamesStore);
+const gamesListEndpoint = createGamesListEndpoint({ projectRoot: PROJECT_ROOT });
+const staticHandler     = createStaticHandler(PROJECT_ROOT);
+const httpServer        = http.createServer((req, res) => {
+  // List handler claims GET/HEAD /api/games and falls through on POST so the
+  // upload handler still owns writes.
+  if (gamesListEndpoint(req, res)) return;
   if (gamesEndpoint(req, res)) return;
   staticHandler(req, res);
 });

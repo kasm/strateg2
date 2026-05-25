@@ -9,9 +9,10 @@
 // flag still forces MP for static-served pages; `?multiplayer=0` forces SP.
 
 import { CONFIG, MAP_PRESETS, DEFAULT_MAP_PRESET } from '../core/config.js';
-import { createClientState } from './client-state.js';
-import { buildHudDom }       from './hud-dom.js';
-import { setupMP, runGame }  from './game-controller.js';
+import { createClientState }   from './client-state.js';
+import { buildHudDom }         from './hud-dom.js';
+import { setupMP, runGame, runReplay } from './game-controller.js';
+import { showReplayBrowser }   from './replay-browser.js';
 
 export function startClient() {
   const params      = new URLSearchParams(location.search);
@@ -30,17 +31,29 @@ export function startClient() {
   if (isMP) {
     setupMP({ client, wsUrl });
   } else {
-    showStartGameModal(MAP_PRESETS, DEFAULT_MAP_PRESET, (preset) => {
-      runGame({ client, isMP: false, dims: { mapW: preset.w, mapH: preset.h } });
-    });
+    showStartGameModal(MAP_PRESETS, DEFAULT_MAP_PRESET,
+      (preset) => {
+        runGame({ client, isMP: false, dims: { mapW: preset.w, mapH: preset.h } });
+      },
+      () => {
+        showReplayBrowser({
+          onPick: (replay) => {
+            document.getElementById('start-game-modal').style.display = 'none';
+            runReplay({ client, replay });
+          },
+        });
+      },
+    );
   }
 }
 
-// SP start-game modal: dropdown of MAP_PRESETS + Start button.
-function showStartGameModal(presets, defaultKey, onStart) {
-  const modal  = document.getElementById('start-game-modal');
-  const select = document.getElementById('start-game-map-size');
-  const submit = document.getElementById('start-game-submit');
+// SP start-game modal: dropdown of MAP_PRESETS + Start button. Also exposes a
+// "Load replay" affordance that opens the replay-browser modal.
+function showStartGameModal(presets, defaultKey, onStart, onLoadReplay) {
+  const modal      = document.getElementById('start-game-modal');
+  const select     = document.getElementById('start-game-map-size');
+  const submit     = document.getElementById('start-game-submit');
+  const loadReplay = document.getElementById('start-game-load-replay');
   if (!modal || !select || !submit) {
     // Defensive: index.html guarantees these exist; fall back to the default.
     onStart(presets[defaultKey]);
@@ -55,11 +68,14 @@ function showStartGameModal(presets, defaultKey, onStart) {
     select.appendChild(opt);
   }
   modal.style.display = '';
-  const onClick = () => {
+  const onStartClick = () => {
     const key = select.value || defaultKey;
     modal.style.display = 'none';
-    submit.removeEventListener('click', onClick);
+    submit.removeEventListener('click', onStartClick);
     onStart(presets[key]);
   };
-  submit.addEventListener('click', onClick);
+  submit.addEventListener('click', onStartClick);
+  if (loadReplay && onLoadReplay) {
+    loadReplay.addEventListener('click', () => onLoadReplay());
+  }
 }

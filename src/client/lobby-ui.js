@@ -17,9 +17,10 @@
  *   },
  *   presets: Object<string,{label:string,w:number,h:number}>,
  *   defaultPreset: string,
+ *   onLoadReplay?: () => void,
  * }} deps
  */
-export function createLobbyUI({ transport, presets, defaultPreset }) {
+export function createLobbyUI({ transport, presets, defaultPreset, onLoadReplay }) {
   const namePanel    = document.getElementById('lobby-name-modal');
   const nameInput    = document.getElementById('lobby-name-input');
   const nameSubmit   = document.getElementById('lobby-name-submit');
@@ -197,6 +198,11 @@ export function createLobbyUI({ transport, presets, defaultPreset }) {
   nameInput.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') submitName();
   });
+
+  const loadReplayBtn = document.getElementById('lobby-load-replay');
+  if (loadReplayBtn && onLoadReplay) {
+    loadReplayBtn.addEventListener('click', () => onLoadReplay());
+  }
 
   inviteAccept.addEventListener('click', () => {
     if (!pendingInvite) return;

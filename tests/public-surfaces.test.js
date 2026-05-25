@@ -40,6 +40,7 @@ describe('P6 — named exports of each public module file', () => {
     '../src/modules/map/index.js',
     '../src/modules/pathfinding/index.js',
     '../src/replay/recorder.js',
+    '../src/replay/playback.js',
     '../src/core/world.js',
     '../src/core/game-loop.js',
     '../src/core/game-state.js',

@@ -23,6 +23,7 @@
         </label>
         <ul id="lobby-players"></ul>
         <div id="lobby-status-msg"></div>
+        <button id="lobby-load-replay">Load replay</button>
       </div>
       <div id="options">
         <label>Red AI:
@@ -70,12 +71,36 @@
       <button id="download-replay">Download replay</button>
       <button id="restart">Restart</button>
     </div>
+    <div id="replay-controls" style="display:none">
+      <button id="replay-play">Pause</button>
+      <button id="replay-speed-1" class="active">1x</button>
+      <button id="replay-speed-2">2x</button>
+      <button id="replay-speed-4">4x</button>
+      <input id="replay-scrub" type="range" min="0" max="100" value="0" step="1" />
+      <span id="replay-tick">0 / 0</span>
+      <span id="replay-badge"></span>
+      <button id="replay-exit">Exit</button>
+    </div>
     <div id="start-game-modal" style="display:none">
       <div class="lobby-modal-title">New game</div>
       <label class="lobby-map-size">Map size:
         <select id="start-game-map-size"></select>
       </label>
-      <button id="start-game-submit">Start</button>
+      <div class="lobby-modal-actions">
+        <button id="start-game-submit">Start</button>
+        <button id="start-game-load-replay">Load replay</button>
+      </div>
+    </div>
+    <div id="replay-browser-modal" style="display:none">
+      <div class="lobby-modal-title">Load replay</div>
+      <div id="replay-browser-status"></div>
+      <div id="replay-browser-list"></div>
+      <label class="replay-browser-file-label">From disk:
+        <input id="replay-browser-file" type="file" accept="application/json,.json" />
+      </label>
+      <div class="lobby-modal-actions">
+        <button id="replay-browser-cancel">Cancel</button>
+      </div>
     </div>
     <div id="lobby-name-modal" style="display:none">
       <div class="lobby-modal-title">Enter your name</div>

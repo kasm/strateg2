@@ -11,6 +11,7 @@ import { CONFIG } from '../src/core/config.js';
 import { createSimWorld, spawnInitial, submitCommand, stepTick, TICK_DT } from '../src/sim/index.js';
 import { stateChecksum } from '../src/replay/checksum.js';
 import { reconstructReplay } from '../src/replay/reconstruct.js';
+import { createPlayback } from '../src/replay/playback.js';
 
 // Play a match with AI on both sides (so builds/trains/orders are generated)
 // plus a couple of human setOption commands, recording the whole time.
@@ -79,6 +80,67 @@ describe('replay: record + reconstruct', () => {
     stepTick(world, TICK_DT); // drains the restart -> recorder.begin()
     expect(world.recorder.commandCount).toBe(0);
     expect(world.state.tick).toBe(1); // spawnInitial reset tick, then this tick ran
+  });
+});
+
+describe('replay: stepwise playback', () => {
+  it('reaches finalTick and verifies checksum', () => {
+    const { world } = playRecordedMatch(500);
+    const replay = world.recorder.toReplay(world.state);
+
+    const playback = createPlayback(replay);
+    while (playback.step()) { /* drive to completion */ }
+
+    expect(playback.getTick()).toBe(replay.result.finalTick);
+    expect(playback.verifyChecksum()).toBe(true);
+  });
+
+  it('produces the same per-tick checksum trail as reconstructReplay', () => {
+    const { world } = playRecordedMatch(500);
+    const replay = world.recorder.toReplay(world.state);
+
+    const reconTrail = [];
+    reconstructReplay(replay, {
+      onTick: (_t, state) => reconTrail.push(stateChecksum(state)),
+    });
+
+    const playback = createPlayback(replay);
+    const playbackTrail = [stateChecksum(playback.state)];
+    while (playback.step()) playbackTrail.push(stateChecksum(playback.state));
+
+    expect(playbackTrail).toEqual(reconTrail);
+  });
+
+  it('seekForward(target) lands on the recorded mid-match checksum', () => {
+    const { world } = playRecordedMatch(500);
+    const replay = world.recorder.toReplay(world.state);
+
+    // Build the reference trail once (index N = checksum after N steps from tick 0).
+    const reconTrail = [];
+    reconstructReplay(replay, {
+      onTick: (_t, state) => reconTrail.push(stateChecksum(state)),
+    });
+
+    const target = Math.min(150, replay.result.finalTick - 1);
+    const playback = createPlayback(replay);
+    playback.seekForward(target);
+
+    expect(playback.getTick()).toBe(target);
+    expect(stateChecksum(playback.state)).toBe(reconTrail[target]);
+    // Forward-only contract.
+    expect(() => playback.seekForward(target - 1)).toThrow(/forward-only/);
+  });
+
+  it('forces AI off regardless of what was recorded', () => {
+    const { world } = playRecordedMatch(200);
+    const replay = world.recorder.toReplay(world.state);
+    // Sanity: the recorded match ran with AI on (att vs def).
+    expect(replay.setup.aiType.red).toBe('att');
+    expect(replay.setup.aiType.blue).toBe('def');
+
+    const playback = createPlayback(replay);
+    expect(playback.state.aiType.red).toBe('off');
+    expect(playback.state.aiType.blue).toBe('off');
   });
 });
 
