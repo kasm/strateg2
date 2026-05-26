@@ -26,6 +26,7 @@ Read-only Node.js analyzers that produce LLM-friendly markdown summaries of this
 | `complexity.mjs` | Per-file LOC, function/class count, max nesting depth, longest function | `node .claude/scripts/complexity.mjs --top 20` |
 | `todos.mjs` | TODO/FIXME/HACK/XXX/NOTE markers | `node .claude/scripts/todos.mjs` |
 | `git-activity.mjs` | Recent commits, hot files, directory churn, authors | `node .claude/scripts/git-activity.mjs --limit 100` |
+| `tokens.mjs` | Claude Code per-session token usage + cost estimates (reads `~/.claude/projects/<key>/`) | `node .claude/scripts/tokens.mjs --top 10` |
 | `context.mjs [target]` | Aggregator: runs the relevant subset, writes `.claude/context/<safe>.md` | `node .claude/scripts/context.mjs src/modules/pathfinding` |
 
 ## When to use which

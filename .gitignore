@@ -56,3 +56,4 @@ tests/.tmp-mcp-replay/
 # Auto-saved match recordings (see src/server/games-store.js)
 .games/
 .history/
+.kilo/

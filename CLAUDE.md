@@ -25,6 +25,7 @@ Prebuilt analyzers in `.claude/scripts/` produce LLM-friendly markdown summaries
 | Complexity hotspots | `node .claude/scripts/complexity.mjs [target]` |
 | TODO/FIXME/HACK markers | `node .claude/scripts/todos.mjs [target]` |
 | Git churn / hot files / authors | `node .claude/scripts/git-activity.mjs [target]` |
+| Per-session token & $ usage (Claude Code logs) | `node .claude/scripts/tokens.mjs` |
 | npm deps usage analysis | `node .claude/scripts/deps.mjs` |
 | Aggregator (writes consolidated markdown) | `node .claude/scripts/context.mjs [target]` |
 | **Task-templated context bundle** (P10) | `node .claude/scripts/recipes/<name>.mjs` |
