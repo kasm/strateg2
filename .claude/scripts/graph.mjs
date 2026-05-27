@@ -1,146 +1,200 @@
 #!/usr/bin/env node
-// graph.mjs — file-to-file import graph (ESM + CJS). Adjacency list + cycles + hubs.
+// graph.mjs — file-level import graph queries. One edge per line.
+//
+// Budget: <2 KB for module-scoped queries; <5 KB for project-wide.
+//
+// Usage:
+//   node .claude/scripts/graph.mjs in <file>        # files imported by <file>
+//   node .claude/scripts/graph.mjs out <file>       # files that import <file>
+//   node .claude/scripts/graph.mjs cycles [scope]   # import cycles (one per line)
+//   node .claude/scripts/graph.mjs hubs [N] [scope] # top-N most-imported files
+//   node .claude/scripts/graph.mjs orphans [scope]  # files nothing imports
 
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
-  getProjectRoot, walkFiles, rel, parseArgs, writeOut, mdTable,
-  safeReadFile, parseJS, walkAst, resolveImport,
-  getTargetPath, getOutPath, header, JS_EXTS,
+  walkFiles, parseJS, walkAst, parseArgs,
+  getProjectRoot, JS_EXTS, rel, resolveImport,
 } from './_shared.mjs';
 
 const args = parseArgs(process.argv);
 const root = getProjectRoot();
-const target = getTargetPath(args, root);
+const subcommand = args._[0];
+const asJson = args.flags.json === true;
+const quiet = args.flags.quiet === true;
 
-// Build adjacency
-const graph = {};      // absPath -> Set(absPath)
-const reverse = {};    // absPath -> Set(absPath)
-const externals = {};  // absPath -> Set(specifier)
-const fileList = [];
-
-for (const f of walkFiles(target, { extensions: JS_EXTS })) {
-  fileList.push(f);
-  graph[f] = new Set();
-  externals[f] = new Set();
-  reverse[f] ||= new Set();
+if (!subcommand) {
+  process.stderr.write(`graph: subcommand required. Try: in | out | cycles | hubs | orphans\n`);
+  process.exit(2);
 }
 
-for (const f of fileList) {
-  const src = safeReadFile(f);
-  if (!src) continue;
-  const ast = parseJS(src, f);
-  walkAst(ast, (node) => {
-    let spec = null;
-    if ((node.type === 'ImportDeclaration' || node.type === 'ExportAllDeclaration' || node.type === 'ExportNamedDeclaration') && node.source) {
-      spec = node.source.value;
-    } else if (node.type === 'ImportExpression' && node.source?.type === 'Literal') {
-      spec = node.source.value;
-    } else if (node.type === 'CallExpression' && node.callee?.name === 'require'
-        && node.arguments?.[0]?.type === 'Literal') {
-      spec = node.arguments[0].value;
-    }
-    if (!spec || typeof spec !== 'string') return;
-    if (spec.startsWith('.') || spec.startsWith('/')) {
-      const resolved = resolveImport(spec, f);
-      if (resolved) {
-        graph[f].add(resolved);
-        reverse[resolved] ||= new Set();
-        reverse[resolved].add(f);
-      } else {
-        externals[f].add(spec + ' [unresolved]');
-      }
-    } else {
-      externals[f].add(spec);
-    }
+const t0 = Date.now();
+const scope = pickScope(subcommand, args);
+const graph = buildGraph(scope);
+const reverseGraph = invert(graph);
+
+let lines = [];
+switch (subcommand) {
+  case 'in':       lines = cmdIn(args._[1]); break;
+  case 'out':      lines = cmdOut(args._[1]); break;
+  case 'cycles':   lines = cmdCycles(); break;
+  case 'hubs':     lines = cmdHubs(args._[1]); break;
+  case 'orphans':  lines = cmdOrphans(); break;
+  default:
+    process.stderr.write(`graph: unknown subcommand "${subcommand}"\n`);
+    process.exit(2);
+}
+
+process.stdout.write(lines.join('\n') + (lines.length ? '\n' : ''));
+if (!quiet) {
+  process.stderr.write(`# graph ${subcommand}: ${lines.length} result(s), ${graph.size} files (${Date.now() - t0} ms)\n`);
+}
+
+// --- subcommands ---
+
+function cmdIn(fileArg) {
+  if (!fileArg) die('graph in: file argument required');
+  const abs = resolve(root, fileArg);
+  if (!graph.has(abs)) die(`graph in: ${fileArg} not in scope (or not parsed)`);
+  return [...graph.get(abs)].sort().map(t => fmtEdge(abs, t, '->'));
+}
+
+function cmdOut(fileArg) {
+  if (!fileArg) die('graph out: file argument required');
+  const abs = resolve(root, fileArg);
+  if (!reverseGraph.has(abs)) {
+    if (!existsSync(abs)) die(`graph out: ${fileArg} does not exist`);
+    return [];
+  }
+  return [...reverseGraph.get(abs)].sort().map(c => fmtEdge(c, abs, '->'));
+}
+
+function cmdCycles() {
+  const cycles = findCycles(graph);
+  return cycles.map(cyc => {
+    if (asJson) return JSON.stringify({ cycle: cyc.map(a => rel(a, root)) });
+    return cyc.concat(cyc[0]).map(a => rel(a, root)).join(' -> ');
   });
 }
 
-const out = [];
-out.push(header('Import graph', target, root));
-out.push(`## Stats\n\n- JS files scanned: **${fileList.length}**\n- Internal edges: **${Object.values(graph).reduce((s, v) => s + v.size, 0)}**`);
-
-// Cycles via DFS
-const cycles = findCycles(graph);
-out.push(`\n## Circular dependencies\n`);
-if (!cycles.length) out.push('_(none)_');
-else {
-  for (const c of cycles.slice(0, 20)) {
-    out.push('- ' + c.map(p => rel(p, root)).join(' → ') + ' → ' + rel(c[0], root));
+function cmdHubs(nArg) {
+  const n = nArg ? parseInt(nArg, 10) : 20;
+  const counts = [];
+  for (const [target, callers] of reverseGraph) {
+    counts.push({ target, count: callers.size });
   }
-  if (cycles.length > 20) out.push(`\n_(showing 20 of ${cycles.length})_`);
+  counts.sort((a, b) => b.count - a.count);
+  return counts.slice(0, n).map(({ target, count }) =>
+    asJson
+      ? JSON.stringify({ path: rel(target, root), importers: count })
+      : `${count} <- ${rel(target, root)}`
+  );
 }
 
-// Hub files (most imported)
-const inDeg = fileList.map(f => ({ file: f, n: (reverse[f]?.size || 0) }))
-  .filter(x => x.n > 0)
-  .sort((a, b) => b.n - a.n);
-out.push(`\n\n## Most imported files (hubs)\n`);
-out.push(mdTable(['File', 'Imported by N files'],
-  inDeg.slice(0, 20).map(x => [rel(x.file, root), x.n])));
-
-// Files with most outgoing imports
-const outDeg = fileList.map(f => ({ file: f, n: graph[f].size }))
-  .filter(x => x.n > 0)
-  .sort((a, b) => b.n - a.n);
-out.push(`\n## Largest fan-out (files importing many others)\n`);
-out.push(mdTable(['File', 'Imports N internal files'],
-  outDeg.slice(0, 20).map(x => [rel(x.file, root), x.n])));
-
-// Adjacency list
-out.push('\n## Adjacency (file → imports)\n');
-out.push('```');
-for (const f of fileList) {
-  const internal = [...graph[f]].map(p => rel(p, root)).sort();
-  const ext = [...externals[f]].sort();
-  if (!internal.length && !ext.length) continue;
-  out.push(rel(f, root));
-  for (const i of internal) out.push('  → ' + i);
-  for (const e of ext) out.push('  ⇢ ' + e + ' (external)');
-}
-out.push('```');
-
-// Orphans
-const orphans = fileList.filter(f => (reverse[f]?.size || 0) === 0 && graph[f].size === 0);
-if (orphans.length) {
-  out.push(`\n## Orphan files (no imports in, no imports out)\n`);
-  for (const f of orphans.slice(0, 30)) out.push('- ' + rel(f, root));
+function cmdOrphans() {
+  const out = [];
+  for (const abs of graph.keys()) {
+    if (!reverseGraph.has(abs)) out.push(rel(abs, root));
+  }
+  out.sort();
+  return out.map(p => asJson ? JSON.stringify({ path: p }) : p);
 }
 
-writeOut(out.join('\n'), getOutPath(args));
+// --- graph build ---
 
-// Tarjan SCC for cycle detection
+function buildGraph(scopeAbs) {
+  const g = new Map();
+  for (const abs of walkFiles(scopeAbs, { extensions: JS_EXTS })) {
+    const source = safeRead(abs);
+    if (source == null) continue;
+    const ast = parseJS(source, abs);
+    const targets = new Set();
+    walkAst(ast, (node) => {
+      let spec = null;
+      if (node.type === 'ImportDeclaration') spec = node.source?.value;
+      else if (node.type === 'ExportAllDeclaration' || node.type === 'ExportNamedDeclaration') {
+        spec = node.source?.value;
+      } else if (node.type === 'ImportExpression' && node.source?.type === 'Literal') {
+        spec = node.source.value;
+      }
+      if (spec) {
+        const resolved = resolveImport(spec, abs);
+        if (resolved) targets.add(resolved);
+      }
+    });
+    g.set(abs, targets);
+  }
+  return g;
+}
+
+function invert(g) {
+  const r = new Map();
+  for (const [from, tos] of g) {
+    for (const to of tos) {
+      if (!r.has(to)) r.set(to, new Set());
+      r.get(to).add(from);
+    }
+  }
+  return r;
+}
+
 function findCycles(g) {
-  const idx = new Map();
-  const low = new Map();
-  const onStack = new Set();
+  const cycles = [];
+  const seenKey = new Set();
   const stack = [];
-  let counter = 0;
-  const sccs = [];
+  const onStack = new Set();
+  const visited = new Set();
 
-  function strongconnect(v) {
-    idx.set(v, counter);
-    low.set(v, counter);
-    counter++;
-    stack.push(v); onStack.add(v);
-    for (const w of g[v] || []) {
-      if (!idx.has(w)) {
-        strongconnect(w);
-        low.set(v, Math.min(low.get(v), low.get(w)));
-      } else if (onStack.has(w)) {
-        low.set(v, Math.min(low.get(v), idx.get(w)));
+  function dfs(node) {
+    visited.add(node);
+    stack.push(node);
+    onStack.add(node);
+    for (const next of g.get(node) || []) {
+      if (!visited.has(next)) {
+        dfs(next);
+      } else if (onStack.has(next)) {
+        const start = stack.indexOf(next);
+        if (start !== -1) {
+          const cyc = stack.slice(start);
+          const key = canonicalCycleKey(cyc);
+          if (!seenKey.has(key)) { seenKey.add(key); cycles.push(cyc); }
+        }
       }
     }
-    if (low.get(v) === idx.get(v)) {
-      const scc = [];
-      while (true) {
-        const w = stack.pop(); onStack.delete(w); scc.push(w);
-        if (w === v) break;
-      }
-      if (scc.length > 1) sccs.push(scc.reverse());
-      else if (scc.length === 1 && (g[scc[0]]?.has(scc[0]))) sccs.push(scc); // self-loop
-    }
+    stack.pop();
+    onStack.delete(node);
   }
-  for (const v of Object.keys(g)) {
-    if (!idx.has(v)) strongconnect(v);
+
+  for (const node of g.keys()) if (!visited.has(node)) dfs(node);
+  return cycles;
+}
+
+function canonicalCycleKey(cyc) {
+  const minIdx = cyc.reduce((mi, v, i) => v < cyc[mi] ? i : mi, 0);
+  const rotated = cyc.slice(minIdx).concat(cyc.slice(0, minIdx));
+  return rotated.join('|');
+}
+
+// --- helpers ---
+
+function pickScope(sub, _args) {
+  if (sub === 'cycles' || sub === 'orphans') {
+    return resolve(root, _args._[1] ?? 'src');
   }
-  return sccs;
+  if (sub === 'hubs') {
+    return resolve(root, _args._[2] ?? 'src');
+  }
+  return resolve(root, _args.flags.scope || 'src');
+}
+
+function fmtEdge(from, to, arrow) {
+  if (asJson) return JSON.stringify({ from: rel(from, root), to: rel(to, root) });
+  return `${rel(from, root)} ${arrow} ${rel(to, root)}`;
+}
+
+function safeRead(p) { try { return readFileSync(p, 'utf8'); } catch { return null; } }
+
+function die(msg) {
+  process.stderr.write(`${msg}\n`);
+  process.exit(2);
 }

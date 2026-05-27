@@ -1,54 +1,90 @@
 # Analysis scripts for Claude
 
-Read-only Node.js analyzers that produce LLM-friendly markdown summaries of this project's structure. Designed so Claude can call them instead of doing dozens of `Glob`/`Grep` calls — cheaper, more accurate, and reproducible.
+Lightweight, single-purpose CLIs that *complement* `Read`/`Grep` for project exploration. Each one answers one class of question and emits flat one-line-per-match output (greppable, pipeable, token-tight).
 
 ## Common conventions
 
-- All scripts: ESM, run with `node .claude/scripts/<name>.mjs`
-- Output: markdown to stdout. Add `--out path/file.md` to write to a file.
-- Most accept an optional positional `<target>` to scope analysis to a subdirectory or single file.
-- All scripts ignore `node_modules`, `.git`, `dist`, `build`, `coverage`, `.cache`, `.next`, `.vite`, `.vitest-cache`, `.parcel-cache`, `.nyc_output`, `.idea`, `.vscode`, `.claude`, and hidden dirs.
-- All scripts are pure read operations — safe to run anytime.
+- ESM, run with `node .claude/scripts/<name>.mjs <subcommand?> [args] [--flags]`
+- stdout = results only, one match per line. stderr = a single summary line (suppress with `--quiet`).
+- `--json` opt-in for JSON Lines output.
+- All scripts ignore `node_modules`, `.git`, `dist`, `build`, `coverage`, `.claude`, hidden dirs, and (in `ast.mjs`) `tests/` + `*.test.js`.
+- All are pure read operations.
+
+## When to reach for these scripts vs. Read/Grep
+
+- `Read` a known file → fastest. Don't run anything.
+- `Grep` for a literal string → fastest. Don't run anything.
+- `map.mjs` — first contact with a directory (~150 tokens for a small module).
+- `ast.mjs defs|refs|calls|callees` — symbol-aware lookup. Beats `Grep` when the same name appears in strings/comments or you need the call-graph context.
+- `ast.mjs trace|path` — code flow / call graph. No `Read`/`Grep` equivalent.
+- `ast.mjs writes <pattern>` — find every assignment to a state path (single-writer audits).
+- `ast.mjs slice fn <name>` — pull just one function out of a long file; ~10× cheaper than reading the file.
+- `graph.mjs in|out|cycles|hubs|orphans` — file-level import graph.
+- `git-activity.mjs`, `deps.mjs`, `tokens.mjs` — git / npm / Claude Code analytics.
 
 ## Scripts
 
+### Exploration
+
 | Script | Purpose | Example |
 |---|---|---|
-| `structure.mjs` | Directory tree, file counts by extension, detected entry points, JS LOC | `node .claude/scripts/structure.mjs` |
-| `deps.mjs` | npm deps from `package.json`, where each is imported, unused/missing flags | `node .claude/scripts/deps.mjs` |
-| `graph.mjs` | File-to-file import graph (ESM + CJS), cycles, hubs, orphans | `node .claude/scripts/graph.mjs src/` |
-| `symbols.mjs` | Exported symbols per file (functions, classes, consts, default, re-exports) | `node .claude/scripts/symbols.mjs src/modules/foo` |
-| `refs.mjs <name>` | References to a symbol by name (regex; may have false positives) | `node .claude/scripts/refs.mjs aStarSearch` |
-| `routes.mjs` | HTTP routes (express/koa/fastify/hapi) + socket.io events; says "not detected" for client-only | `node .claude/scripts/routes.mjs` |
-| `client-server.mjs` | Classifies JS files as server / client / shared / mixed | `node .claude/scripts/client-server.mjs` |
-| `events.mjs` | Event handlers: `addEventListener`, `.on`/`.emit`, inline `on*=`, EventEmitter | `node .claude/scripts/events.mjs` |
-| `assets.mjs` | Static asset inventory (images, audio, 3D, fonts, shaders) + references | `node .claude/scripts/assets.mjs` |
-| `complexity.mjs` | Per-file LOC, function/class count, max nesting depth, longest function | `node .claude/scripts/complexity.mjs --top 20` |
-| `todos.mjs` | TODO/FIXME/HACK/XXX/NOTE markers | `node .claude/scripts/todos.mjs` |
-| `git-activity.mjs` | Recent commits, hot files, directory churn, authors | `node .claude/scripts/git-activity.mjs --limit 100` |
-| `tokens.mjs` | Claude Code per-session token usage + cost estimates (reads `~/.claude/projects/<key>/`) | `node .claude/scripts/tokens.mjs --top 10` |
-| `context.mjs [target]` | Aggregator: runs the relevant subset, writes `.claude/context/<safe>.md` | `node .claude/scripts/context.mjs src/modules/pathfinding` |
+| `map.mjs [target]` | One line per file: `path \| LOC \| exports` | `node .claude/scripts/map.mjs src/modules/units` |
+| `ast.mjs <sub> <args>` | AST-powered symbol + flow queries (see below) | `node .claude/scripts/ast.mjs trace createUnits` |
+| `graph.mjs <sub> [args]` | File-level import graph queries | `node .claude/scripts/graph.mjs in src/modules/combat/index.js` |
 
-## When to use which
+### `ast.mjs` subcommands
 
-- **First question about the project** → `context.mjs` (project-wide). Then read `.claude/context/project.md`.
-- **Focused work on a directory/module** → `context.mjs <dir>` for a slice; then individual scripts to drill down.
-- **"What is `X` and who uses it?"** → `symbols.mjs <dir>` to find definition, then `refs.mjs X` for usages.
-- **"How do files connect?"** → `graph.mjs <dir>`.
-- **"Is package `foo` actually used?"** → `deps.mjs`.
-- **"What routes does the API expose?"** → `routes.mjs`. If empty, it's a client-only project.
-- **Picking a refactor target / risky areas** → `complexity.mjs` for hotspots, `git-activity.mjs` for churn.
+| Subcommand | Question |
+|---|---|
+| `defs <name>` | Where is `<name>` declared? |
+| `refs <name>` | Where is `<name>` referenced (excludes declarations)? |
+| `calls <name>` | Who calls `<name>` (and from what enclosing fn)? |
+| `callees <name>` | What does `<name>` call? |
+| `trace <name>` | Recursive call tree from `<name>` (`--depth N`). |
+| `path <from> <to>` | Call paths from `<from>` to `<to>` (`--depth N`). |
+| `writes <pattern>` | Assignments to a state path glob, e.g. `state.units.*`. |
+| `slice fn <name>` | Print just `<name>`'s source. |
+| `slice imports <file>` | Print just the import statements of `<file>`. |
+| `slice exports <file>` | Print just the export statements of `<file>`. |
 
-## Dependencies
+Common flags: `--scope <dir>` (default `src`), `--ignore <glob>`, `--depth N`, `--context N`, `--json`, `--quiet`.
 
-`acorn` (declared in root `package.json` devDependencies). All other behavior uses Node built-ins.
+### `graph.mjs` subcommands
 
-## Output location
+| Subcommand | Output |
+|---|---|
+| `in <file>` | files imported by `<file>` |
+| `out <file>` | files that import `<file>` |
+| `cycles [scope]` | one cycle per line |
+| `hubs [N] [scope]` | top-N most-imported files |
+| `orphans [scope]` | files nothing imports |
 
-`context.mjs` writes to `.claude/context/<scope>.md`. That directory is gitignored — content is ephemeral and regenerable.
+### Analytics / git / npm
+
+| Script | Purpose |
+|---|---|
+| `deps.mjs` | npm deps usage analysis (used / unused / missing). |
+| `git-activity.mjs` | Recent commits, hot files, directory churn, authors. |
+| `tokens.mjs` | Claude Code per-session token usage + cost estimates (reads `~/.claude/projects/<key>/`). |
+
+### CI guards (not exploration tools)
+
+`check-internals.mjs`, `check-single-writer.mjs`, `check-determinism.mjs`, `check-faction-access.mjs`, `check-snapshot-ack.mjs`, `precommit.mjs`. Invoked via `npm run check`.
+
+### Replay
+
+`replay.mjs`, `_replay-report.mjs` — replay analysis (separate concern).
 
 ## Caveats
 
-- `refs.mjs` uses regex, not LSP, so it can match identifiers in comments and unrelated scopes with the same name. For ground-truth references, use the editor's LSP.
-- AST-based scripts use `acorn` with `sourceType: 'module'` (falls back to `'script'`). Syntax errors are reported in output rather than crashing the script.
-- `_shared.mjs` is internal — don't invoke directly.
+- **Scope-naive matching.** `ast.mjs refs|calls` matches by identifier name, not lexical scope. The same name in two scopes is reported in both. Disambiguate with `--context 1` or by inspecting the line. (Adding a scope tracker is a fast follow-up if false positives bite.)
+- **Top-level declarations only.** `ast.mjs` indexes top-level functions/classes/consts. Nested functions are not indexed; trace from the outer function instead.
+- **No source caching.** Each run re-parses every file in scope (~100 ms for the whole `src/`). Fast enough that caching would cost more than it saves.
+
+## Dependencies
+
+`acorn` (devDependency). All other behavior uses Node built-ins.
+
+## Legacy
+
+Older heavy analyzers and recipes live under [`_legacy/`](_legacy/README.md) for git-history reference and are no longer in use. See that folder's README for the replacement mapping.
