@@ -14,16 +14,30 @@
 // recording is one cheap array push per command, and commands are infrequent.
 
 import { TICK_DT } from '../core/game-loop.js';
+import { isPlayer, players, get } from '../core/factions.js';
 import { stateChecksum } from './checksum.js';
 
 export const REPLAY_FORMAT = 'strateg2-replay';
 export const REPLAY_VERSION = 1;
+
+// Human-readable AI names, mirroring AI_OPTIONS in src/client/bootstrap.js.
+// Duplicated (not imported) so the recorder stays free of client dependencies
+// and the replay JSON's status string is self-contained.
+const AI_LABELS = {
+  off:      'Manual',
+  att:      'Att AI',
+  def:      'Def AI',
+  adaptive: 'Adaptive AI',
+  utility:  'Utility AI',
+  hybrid:   'Hybrid AI',
+};
 
 /**
  * @typedef {Object} Recorder
  * @property {(state:Object) => void} begin
  * @property {(cmd:Object) => void} record
  * @property {(state:Object) => void} finish
+ * @property {() => void} markTimeout
  * @property {(state:Object) => Object} toReplay
  * @property {number} commandCount
  * @property {boolean} isFinished
@@ -35,7 +49,8 @@ export function createRecorder() {
   let recordedAt = null;
   let commands = [];
   let finished = false;
-  let frozen = null; // { result, checksum } captured at gameOver
+  let frozen = null;   // { result, checksum } captured at gameOver
+  let timedOut = false;
 
   /**
    * Snapshot the tick-0 reconstruction inputs and start a new log.
@@ -57,6 +72,7 @@ export function createRecorder() {
     commands = [];
     finished = false;
     frozen = null;
+    timedOut = false;
   }
 
   /** Append an applied command. Restarts begin a NEW replay, so they're skipped. */
@@ -77,6 +93,15 @@ export function createRecorder() {
     };
   }
 
+  // Mark this match as force-stopped by the auto-battles harness (sim-time
+  // budget exhausted). `finish(state)` should be called immediately after
+  // with state.gameOver still null — toReplay() then emits status:"timeout"
+  // alongside result.winner:null. Idempotent and a no-op after a natural finish.
+  function markTimeout() {
+    if (finished) return;
+    timedOut = true;
+  }
+
   /**
    * Build the replay JSON. For a finished match the frozen result/checksum are
    * used; for an in-progress download a best-effort snapshot of `state` is taken.
@@ -86,6 +111,7 @@ export function createRecorder() {
       ? frozen.result
       : { winner: state.gameOver, finalTick: state.tick };
     const checksum = finished ? frozen.checksum : stateChecksum(state);
+    const status = computeStatus(timedOut, result.winner, state.aiType);
     return {
       format: REPLAY_FORMAT,
       version: REPLAY_VERSION,
@@ -95,6 +121,7 @@ export function createRecorder() {
       // replays run with AI off, the command log is the sole input).
       setup: { ...setup, aiType: { red: state.aiType.red, blue: state.aiType.blue } },
       result,
+      status,
       checksum,
       commands: commands.slice(),
     };
@@ -104,8 +131,26 @@ export function createRecorder() {
     begin,
     record,
     finish,
+    markTimeout,
     toReplay,
     get commandCount() { return commands.length; },
     get isFinished() { return finished; },
   };
+}
+
+// Human-readable summary of how the match ended. One of:
+//   "timeout"                                      — harness force-stopped the match
+//   "Red(Att AI) > Blue(Hybrid AI)"                — a player faction won
+//   "draw"                                         — both eliminated on the same tick
+//   null                                           — match still in progress
+function computeStatus(timedOut, winner, aiType) {
+  if (timedOut) return 'timeout';
+  if (isPlayer(winner)) {
+    const loser = players().find((p) => p !== winner);
+    if (!loser) return null;
+    const label = (k) => AI_LABELS[k] ?? k;
+    return `${get(winner).label}(${label(aiType[winner])}) > ${get(loser).label}(${label(aiType[loser])})`;
+  }
+  if (winner === 'draw') return 'draw';
+  return null;
 }

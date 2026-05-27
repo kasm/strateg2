@@ -14,6 +14,7 @@ import { createClientState }   from './client-state.js';
 import { buildHudDom }         from './hud-dom.js';
 import { setupMP, runGame, runReplay } from './game-controller.js';
 import { showReplayBrowser }   from './replay-browser.js';
+import { startAutoBattles }    from './auto-battles.js';
 
 const AI_OPTIONS = [
   { value: 'off',      label: 'Manual (no AI)' },
@@ -52,8 +53,8 @@ export function startClient() {
 }
 
 // Opens the SP start-game modal and on submit hands off to runGame. Also wires
-// the "Load replay" affordance. Shared between the static-SP entry path and
-// the dynamic-server lobby's "Play vs AI" button.
+// the "Load replay" and "Auto Battles" affordances. Shared between the
+// static-SP entry path and the dynamic-server lobby's "Play vs AI" button.
 function openStartGameModal(client) {
   showStartGameModal(MAP_PRESETS, DEFAULT_MAP_PRESET,
     (preset, aiTypes) => {
@@ -72,19 +73,39 @@ function openStartGameModal(client) {
         },
       });
     },
+    () => openAutoBattlesPanel(client),
   );
 }
 
+// Show the auto-battles status panel and kick off the loop. Stop returns the
+// user to the start-game modal so they can launch a normal match.
+function openAutoBattlesPanel(client) {
+  const panel    = document.getElementById('auto-battles-panel');
+  const statusEl = document.getElementById('auto-battles-status');
+  const stopBtn  = document.getElementById('auto-battles-stop');
+  if (!panel || !statusEl || !stopBtn) return;
+  panel.style.display = '';
+  const controller = startAutoBattles({ statusEl });
+  const onStop = () => {
+    controller.stop();
+    stopBtn.removeEventListener('click', onStop);
+    panel.style.display = 'none';
+    openStartGameModal(client);
+  };
+  stopBtn.addEventListener('click', onStop);
+}
+
 // SP start-game modal: dropdown of MAP_PRESETS + Your AI + Opponent AI + Start
-// button. Also exposes a "Load replay" affordance that opens the replay
-// browser modal. `onStart` receives (preset, { red, blue }).
-function showStartGameModal(presets, defaultKey, onStart, onLoadReplay) {
-  const modal      = document.getElementById('start-game-modal');
-  const select     = document.getElementById('start-game-map-size');
-  const redSel     = document.getElementById('start-game-red-ai');
-  const blueSel    = document.getElementById('start-game-blue-ai');
-  const submit     = document.getElementById('start-game-submit');
-  const loadReplay = document.getElementById('start-game-load-replay');
+// button. Also exposes a "Load replay" affordance and an "Auto Battles" entry
+// point. `onStart` receives (preset, { red, blue }).
+function showStartGameModal(presets, defaultKey, onStart, onLoadReplay, onAutoBattles) {
+  const modal       = document.getElementById('start-game-modal');
+  const select      = document.getElementById('start-game-map-size');
+  const redSel      = document.getElementById('start-game-red-ai');
+  const blueSel     = document.getElementById('start-game-blue-ai');
+  const submit      = document.getElementById('start-game-submit');
+  const loadReplay  = document.getElementById('start-game-load-replay');
+  const autoBattles = document.getElementById('start-game-auto-battles');
   if (!modal || !select || !submit) {
     // Defensive: index.html guarantees these exist; fall back to the default.
     onStart(presets[defaultKey], { red: DEFAULT_RED_AI, blue: DEFAULT_BLUE_AI });
@@ -109,11 +130,21 @@ function showStartGameModal(presets, defaultKey, onStart, onLoadReplay) {
     };
     modal.style.display = 'none';
     submit.removeEventListener('click', onStartClick);
+    if (autoBattles) autoBattles.removeEventListener('click', onAutoClick);
     onStart(presets[key], aiTypes);
+  };
+  const onAutoClick = () => {
+    modal.style.display = 'none';
+    submit.removeEventListener('click', onStartClick);
+    if (autoBattles) autoBattles.removeEventListener('click', onAutoClick);
+    if (onAutoBattles) onAutoBattles();
   };
   submit.addEventListener('click', onStartClick);
   if (loadReplay && onLoadReplay) {
     loadReplay.addEventListener('click', () => onLoadReplay());
+  }
+  if (autoBattles && onAutoBattles) {
+    autoBattles.addEventListener('click', onAutoClick);
   }
 }
 

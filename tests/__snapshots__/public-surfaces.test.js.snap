@@ -232,6 +232,7 @@ exports[`P6 — runtime API surface of each module > recorder — keys of create
   "commandCount",
   "finish",
   "isFinished",
+  "markTimeout",
   "record",
   "toReplay",
 ]
